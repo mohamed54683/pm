@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm start)",
+      "Bash(ping:*)",
+      "Bash(\"c:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\":*)"
+    ]
+  }
+}
