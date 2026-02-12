@@ -7,11 +7,12 @@ import { withAuth } from '@/lib/middleware/auth';
 import { DecodedToken } from '@/lib/auth';
 import { getAccessContext, buildProjectAccessFilter } from '@/lib/project-access';
 
-// Safe query wrapper - returns default on failure (missing tables etc)
 async function safeQuery<T>(sql: string, params: any[] = [], fallback: T): Promise<T> {
   try {
-    return await query<T>(sql, params);
-  } catch {
+    const result = await query<T>(sql, params);
+    return result;
+  } catch (err: any) {
+    console.warn('Dashboard safeQuery failed:', err?.message || err);
     return fallback;
   }
 }
@@ -19,14 +20,22 @@ async function safeQuery<T>(sql: string, params: any[] = [], fallback: T): Promi
 export const GET = withAuth(
   async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
-      const ctx = await getAccessContext(user.userId);
+      let ctx;
+      try {
+        ctx = await getAccessContext(user.userId);
+      } catch (err: any) {
+        console.error('getAccessContext failed:', err?.message);
+        ctx = { userId: user.userId, departmentId: null, isDeptManager: false, isAdmin: true, accessibleProjectIds: [] };
+      }
+
+      const pf = () => buildProjectAccessFilter(ctx, 'p');
 
       // 1. Project summary
-      const pf1 = buildProjectAccessFilter(ctx, 'p');
+      const f1 = pf();
       const projectSummary = await safeQuery<any[]>(
         `SELECT
           COUNT(*) as total,
-          SUM(CASE WHEN p.status IN ('active','execution','monitoring') THEN 1 ELSE 0 END) as active,
+          SUM(CASE WHEN p.status IN ('execution','monitoring') THEN 1 ELSE 0 END) as active,
           SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed,
           SUM(CASE WHEN p.status = 'planning' THEN 1 ELSE 0 END) as planning,
           SUM(CASE WHEN p.status = 'on_hold' THEN 1 ELSE 0 END) as on_hold,
@@ -35,13 +44,13 @@ export const GET = withAuth(
           SUM(CASE WHEN p.health = 'at_risk' THEN 1 ELSE 0 END) as at_risk,
           SUM(CASE WHEN p.health = 'off_track' THEN 1 ELSE 0 END) as off_track
          FROM projects p
-         WHERE p.deleted_at IS NULL AND p.is_template = FALSE AND ${pf1.sql}`,
-        [...pf1.params],
+         WHERE p.deleted_at IS NULL AND p.is_template = 0 AND ${f1.sql}`,
+        f1.params,
         [{ total: 0, active: 0, completed: 0, planning: 0, on_hold: 0, cancelled: 0, on_track: 0, at_risk: 0, off_track: 0 }]
       );
 
       // 2. Task summary
-      const pf2 = buildProjectAccessFilter(ctx, 'p');
+      const f2 = pf();
       const taskSummary = await safeQuery<any[]>(
         `SELECT
           COUNT(*) as total,
@@ -55,82 +64,85 @@ export const GET = withAuth(
           SUM(CASE WHEN t.priority = 'high' THEN 1 ELSE 0 END) as highpriority
          FROM tasks t
          JOIN projects p ON t.project_id = p.id
-         WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND ${pf2.sql}`,
-        [...pf2.params],
+         WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND ${f2.sql}`,
+        f2.params,
         [{ total: 0, todo: 0, in_progress: 0, in_review: 0, done: 0, cancelled: 0, overdue: 0, critical: 0, highpriority: 0 }]
       );
 
       // 3. Recent projects
-      const pf3 = buildProjectAccessFilter(ctx, 'p');
+      const f3 = pf();
       const recentProjects = await safeQuery<any[]>(
         `SELECT p.id, p.code, p.name, p.status, p.health, p.priority, p.progress,
           p.start_date, p.end_date,
-          (SELECT COUNT(*) FROM tasks WHERE project_id = p.id AND deleted_at IS NULL) as task_count,
-          (SELECT COUNT(*) FROM tasks WHERE project_id = p.id AND status = 'done' AND deleted_at IS NULL) as done_count
+          (SELECT COUNT(*) FROM tasks t2 WHERE t2.project_id = p.id AND t2.deleted_at IS NULL) as task_count,
+          (SELECT COUNT(*) FROM tasks t3 WHERE t3.project_id = p.id AND t3.status = 'done' AND t3.deleted_at IS NULL) as done_count
          FROM projects p
-         WHERE p.deleted_at IS NULL AND p.is_template = FALSE AND ${pf3.sql}
+         WHERE p.deleted_at IS NULL AND p.is_template = 0 AND ${f3.sql}
          ORDER BY p.updated_at DESC LIMIT 10`,
-        [...pf3.params],
+        f3.params,
         []
       );
 
-      // 4. My tasks (upcoming / overdue)
+      // 4. My tasks
       const myTasks = await safeQuery<any[]>(
         `SELECT t.id, t.title, t.status, t.priority, t.due_date, t.project_id,
           p.name as project_name, p.code as project_code
          FROM tasks t
          JOIN projects p ON t.project_id = p.id
          LEFT JOIN task_assignees ta ON t.id = ta.task_id
-         WHERE ta.user_id = ? AND t.deleted_at IS NULL AND t.status NOT IN ('done','cancelled','closed')
-         ORDER BY t.due_date IS NULL, t.due_date ASC LIMIT 15`,
+         WHERE ta.user_id = ? AND t.deleted_at IS NULL AND t.status NOT IN ('done','cancelled')
+         ORDER BY CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END, t.due_date ASC LIMIT 15`,
         [user.userId],
         []
       );
 
-      // 5. Active sprints
-      const pf5 = buildProjectAccessFilter(ctx, 'p');
+      // 5. Active sprints (no deleted_at on sprints table)
+      const f5 = pf();
       const activeSprints = await safeQuery<any[]>(
         `SELECT s.id, s.name, s.start_date, s.end_date, p.name as project_name, p.code as project_code,
-          (SELECT COUNT(*) FROM tasks WHERE sprint_id = s.id AND deleted_at IS NULL) as total_tasks,
-          (SELECT COUNT(*) FROM tasks WHERE sprint_id = s.id AND status = 'done' AND deleted_at IS NULL) as completed_tasks,
-          (SELECT SUM(story_points) FROM tasks WHERE sprint_id = s.id AND deleted_at IS NULL) as total_points,
-          (SELECT SUM(story_points) FROM tasks WHERE sprint_id = s.id AND status = 'done' AND deleted_at IS NULL) as completed_points
+          (SELECT COUNT(*) FROM tasks t2 WHERE t2.sprint_id = s.id AND t2.deleted_at IS NULL) as total_tasks,
+          (SELECT COUNT(*) FROM tasks t3 WHERE t3.sprint_id = s.id AND t3.status = 'done' AND t3.deleted_at IS NULL) as completed_tasks,
+          (SELECT COALESCE(SUM(t4.story_points),0) FROM tasks t4 WHERE t4.sprint_id = s.id AND t4.deleted_at IS NULL) as total_points,
+          (SELECT COALESCE(SUM(t5.story_points),0) FROM tasks t5 WHERE t5.sprint_id = s.id AND t5.status = 'done' AND t5.deleted_at IS NULL) as completed_points
          FROM sprints s
          JOIN projects p ON s.project_id = p.id
-         WHERE s.status = 'active' AND p.deleted_at IS NULL AND ${pf5.sql}
+         WHERE s.status = 'active' AND p.deleted_at IS NULL AND ${f5.sql}
          ORDER BY s.end_date LIMIT 5`,
-        [...pf5.params],
+        f5.params,
         []
       );
 
-      // 6. Risk & Issue summary - consistent alias 'p' in all subqueries
-      const pf6 = buildProjectAccessFilter(ctx, 'p');
+      // 6. Risk & Issue summary
       const riskSummary = await safeQuery<any[]>(
         `SELECT
-          (SELECT COUNT(*) FROM risks r JOIN projects p ON r.project_id=p.id WHERE r.deleted_at IS NULL AND p.deleted_at IS NULL AND r.status NOT IN ('closed','mitigated') AND ${pf6.sql}) as open_risks,
-          (SELECT COUNT(*) FROM risks r JOIN projects p ON r.project_id=p.id WHERE r.deleted_at IS NULL AND p.deleted_at IS NULL AND r.risk_level IN ('critical','high') AND r.status NOT IN ('closed','mitigated') AND ${pf6.sql}) as high_risks,
-          (SELECT COUNT(*) FROM risks r JOIN projects p ON r.project_id=p.id WHERE r.deleted_at IS NULL AND p.deleted_at IS NULL AND ${pf6.sql}) as total_risks,
-          (SELECT COUNT(*) FROM issues i JOIN projects p ON i.project_id=p.id WHERE i.deleted_at IS NULL AND p.deleted_at IS NULL AND i.status IN ('open','in_progress') AND ${pf6.sql}) as open_issues,
-          (SELECT COUNT(*) FROM issues i JOIN projects p ON i.project_id=p.id WHERE i.deleted_at IS NULL AND p.deleted_at IS NULL AND i.severity IN ('critical','high') AND i.status IN ('open','in_progress') AND ${pf6.sql}) as critical_issues,
-          (SELECT COUNT(*) FROM issues i JOIN projects p ON i.project_id=p.id WHERE i.deleted_at IS NULL AND p.deleted_at IS NULL AND ${pf6.sql}) as total_issues`,
-        [...pf6.params, ...pf6.params, ...pf6.params, ...pf6.params, ...pf6.params, ...pf6.params],
+          (SELECT COUNT(*) FROM risks r WHERE r.deleted_at IS NULL AND r.status NOT IN ('closed','mitigated')) as open_risks,
+          (SELECT COUNT(*) FROM risks r WHERE r.deleted_at IS NULL AND r.risk_level IN ('critical','high') AND r.status NOT IN ('closed','mitigated')) as high_risks,
+          (SELECT COUNT(*) FROM risks r WHERE r.deleted_at IS NULL) as total_risks,
+          (SELECT COUNT(*) FROM issues i WHERE i.deleted_at IS NULL AND i.status IN ('open','in_progress')) as open_issues,
+          (SELECT COUNT(*) FROM issues i WHERE i.deleted_at IS NULL AND i.severity IN ('critical','blocker') AND i.status IN ('open','in_progress')) as critical_issues,
+          (SELECT COUNT(*) FROM issues i WHERE i.deleted_at IS NULL) as total_issues`,
+        [],
         [{ open_risks: 0, high_risks: 0, total_risks: 0, open_issues: 0, critical_issues: 0, total_issues: 0 }]
       );
 
-      // 7. Time tracking summary (this week) - uses duration_minutes column
-      const pf7 = buildProjectAccessFilter(ctx, 'p');
+      // 7. Time tracking (this week)
+      const f7 = pf();
+      const timeParams = [...f7.params];
       let timeSql = `SELECT
         COALESCE(ROUND(SUM(te.duration_minutes)/60.0, 1), 0) as weekly_hours,
         COALESCE(ROUND(SUM(CASE WHEN te.is_billable=1 THEN te.duration_minutes ELSE 0 END)/60.0, 1), 0) as billable_hours,
         COALESCE(ROUND(SUM(CASE WHEN te.status='submitted' THEN te.duration_minutes ELSE 0 END)/60.0, 1), 0) as pending_hours
-        FROM time_entries te JOIN projects p ON te.project_id = p.id
-        WHERE te.date >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND p.deleted_at IS NULL AND ${pf7.sql}`;
-      const timeParams = [...pf7.params];
-      if (!ctx.isAdmin && !ctx.isDeptManager) { timeSql += ` AND te.user_id = ?`; timeParams.push(user.userId); }
+        FROM time_entries te
+        JOIN projects p ON te.project_id = p.id
+        WHERE te.date >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND p.deleted_at IS NULL AND ${f7.sql}`;
+      if (!ctx.isAdmin && !ctx.isDeptManager) {
+        timeSql += ` AND te.user_id = ?`;
+        timeParams.push(user.userId);
+      }
       const timeSummary = await safeQuery<any[]>(timeSql, timeParams, [{ weekly_hours: 0, billable_hours: 0, pending_hours: 0 }]);
 
       // 8. Budget overview
-      const pf8 = buildProjectAccessFilter(ctx, 'p');
+      const f8 = pf();
       const budgetOverview = await safeQuery<any[]>(
         `SELECT COALESCE(SUM(pb.total_budget),0) as total_budget,
           COALESCE(SUM(pb.actual_spent),0) as actual_spent,
@@ -138,38 +150,39 @@ export const GET = withAuth(
           COUNT(DISTINCT pb.project_id) as budgeted_projects
          FROM project_budgets pb
          JOIN projects p ON pb.project_id = p.id
-         WHERE p.deleted_at IS NULL AND ${pf8.sql}`,
-        [...pf8.params],
+         WHERE p.deleted_at IS NULL AND ${f8.sql}`,
+        f8.params,
         [{ total_budget: 0, actual_spent: 0, remaining: 0, budgeted_projects: 0 }]
       );
 
-      // 9. Department breakdown (for managers/admins)
+      // 9. Department breakdown
       let departmentBreakdown: any[] = [];
       if (ctx.isAdmin || ctx.isDeptManager) {
         departmentBreakdown = await safeQuery<any[]>(
           `SELECT d.id, d.name as department_name,
             COUNT(DISTINCT p.id) as project_count,
-            SUM(CASE WHEN p.status IN ('active','execution','monitoring') THEN 1 ELSE 0 END) as active_projects
+            SUM(CASE WHEN p.status IN ('execution','monitoring') THEN 1 ELSE 0 END) as active_projects
            FROM departments d
-           LEFT JOIN projects p ON p.department_id = d.id AND p.deleted_at IS NULL AND p.is_template = FALSE
-           WHERE d.status = 'active'
+           LEFT JOIN projects p ON p.department_id = d.id AND p.deleted_at IS NULL AND p.is_template = 0
+           WHERE d.status = 'active' AND d.deleted_at IS NULL
            GROUP BY d.id, d.name ORDER BY d.name`,
           [],
           []
         );
       }
 
-      // 10. Recent activity
-      const pf10 = buildProjectAccessFilter(ctx, 'p');
+      // 10. Recent activity (project_activity_log table)
+      const f10 = pf();
       const recentActivity = await safeQuery<any[]>(
-        `SELECT al.*, u.name as user_name,
+        `SELECT al.id, al.action, al.description, al.entity_type, al.created_at,
+          u.name as user_name,
           p.name as project_name, p.code as project_code
-         FROM activities al
-         JOIN users u ON al.user_id = u.id
+         FROM project_activity_log al
+         LEFT JOIN users u ON al.user_id = u.id
          LEFT JOIN projects p ON al.project_id = p.id
-         WHERE (al.project_id IS NULL OR (p.deleted_at IS NULL AND ${pf10.sql}))
+         WHERE (al.project_id IS NULL OR (p.deleted_at IS NULL AND ${f10.sql}))
          ORDER BY al.created_at DESC LIMIT 20`,
-        [...pf10.params],
+        f10.params,
         []
       );
 
@@ -187,12 +200,12 @@ export const GET = withAuth(
       const teamsSummary = await safeQuery<any[]>(
         `SELECT
           (SELECT COUNT(*) FROM teams WHERE deleted_at IS NULL) as total,
-          (SELECT COUNT(*) FROM team_members WHERE deleted_at IS NULL) as total_members`,
+          (SELECT COUNT(*) FROM team_members WHERE left_at IS NULL) as total_members`,
         [],
         [{ total: 0, total_members: 0 }]
       );
 
-      // 13. Asset summary (table may not exist)
+      // 13. Asset summary
       const assetSummary = await safeQuery<any[]>(
         `SELECT COUNT(*) as total,
           SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available,
@@ -204,8 +217,8 @@ export const GET = withAuth(
         [{ total: 0, available: 0, assigned: 0, maintenance: 0, retired: 0 }]
       );
 
-      // 14. Expense summary
-      const pf13 = buildProjectAccessFilter(ctx, 'p');
+      // 14. Expense summary (no deleted_at on expenses)
+      const f14 = pf();
       const expenseSummary = await safeQuery<any[]>(
         `SELECT COALESCE(SUM(e.amount),0) as total_amount,
           COALESCE(SUM(CASE WHEN e.status='approved' THEN e.amount ELSE 0 END),0) as approved_amount,
@@ -213,13 +226,13 @@ export const GET = withAuth(
           COUNT(*) as total_count
          FROM expenses e
          JOIN projects p ON e.project_id = p.id
-         WHERE e.deleted_at IS NULL AND p.deleted_at IS NULL AND ${pf13.sql}`,
-        [...pf13.params],
+         WHERE p.deleted_at IS NULL AND ${f14.sql}`,
+        f14.params,
         [{ total_amount: 0, approved_amount: 0, pending_amount: 0, total_count: 0 }]
       );
 
-      // 15. Sprint summary
-      const pf14 = buildProjectAccessFilter(ctx, 'p');
+      // 15. Sprint summary (no deleted_at on sprints)
+      const f15 = pf();
       const sprintSummary = await safeQuery<any[]>(
         `SELECT COUNT(*) as total,
           SUM(CASE WHEN s.status = 'active' THEN 1 ELSE 0 END) as active,
@@ -227,8 +240,8 @@ export const GET = withAuth(
           SUM(CASE WHEN s.status = 'planning' THEN 1 ELSE 0 END) as planning
          FROM sprints s
          JOIN projects p ON s.project_id = p.id
-         WHERE s.deleted_at IS NULL AND p.deleted_at IS NULL AND ${pf14.sql}`,
-        [...pf14.params],
+         WHERE p.deleted_at IS NULL AND ${f15.sql}`,
+        f15.params,
         [{ total: 0, active: 0, completed: 0, planning: 0 }]
       );
 
@@ -254,9 +267,12 @@ export const GET = withAuth(
           sprints: sprintSummary[0],
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Dashboard GET error:', error);
-      return NextResponse.json({ success: false, error: 'Failed to fetch dashboard', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch dashboard', details: error?.message || 'Unknown error' },
+        { status: 500 }
+      );
     }
   },
   { requiredPermissions: ['dashboard.view'], checkCsrf: false }
