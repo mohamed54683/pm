@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { Modal } from "@/components/ui/modal";
 import Button from "@/components/ui/button/Button";
 
@@ -304,10 +305,13 @@ export default function TeamPage() {
               >
                 <div className="flex flex-col items-center text-center">
                   {member.avatar_url ? (
-                    <img
+                    <Image
                       src={member.avatar_url}
                       alt={`${member.first_name} ${member.last_name}`}
+                      width={80}
+                      height={80}
                       className="h-20 w-20 rounded-full object-cover"
+                      unoptimized
                     />
                   ) : (
                     <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-2xl font-bold text-white">
@@ -358,10 +362,13 @@ export default function TeamPage() {
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
                         {member.avatar_url ? (
-                          <img
+                          <Image
                             src={member.avatar_url}
                             alt=""
+                            width={40}
+                            height={40}
                             className="h-10 w-10 rounded-full object-cover"
+                            unoptimized
                           />
                         ) : (
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold text-white">
@@ -416,10 +423,13 @@ export default function TeamPage() {
           <div className="p-6">
             <div className="flex items-center gap-4">
               {showMemberDetail.avatar_url ? (
-                <img
+                <Image
                   src={showMemberDetail.avatar_url}
                   alt=""
+                  width={64}
+                  height={64}
                   className="h-16 w-16 rounded-full object-cover"
+                  unoptimized
                 />
               ) : (
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-xl font-bold text-white">
