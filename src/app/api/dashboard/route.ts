@@ -155,17 +155,20 @@ export const GET = withAuth(
         [{ total_budget: 0, actual_spent: 0, remaining: 0, budgeted_projects: 0 }]
       );
 
-      // 9. Department breakdown
+      // 9. Department breakdown (enhanced with manager & members)
       let departmentBreakdown: any[] = [];
       if (ctx.isAdmin || ctx.isDeptManager) {
         departmentBreakdown = await safeQuery<any[]>(
-          `SELECT d.id, d.name as department_name,
+          `SELECT d.id, d.name as department_name, d.status as dept_status,
+            COALESCE(mgr.name, CONCAT(mgr.first_name, ' ', mgr.last_name)) as manager_name,
+            (SELECT COUNT(*) FROM users u2 WHERE u2.department_id = d.id AND u2.deleted_at IS NULL AND u2.status = 'active') as member_count,
             COUNT(DISTINCT p.id) as project_count,
             SUM(CASE WHEN p.status IN ('execution','monitoring') THEN 1 ELSE 0 END) as active_projects
            FROM departments d
+           LEFT JOIN users mgr ON d.manager_id = mgr.id AND mgr.deleted_at IS NULL
            LEFT JOIN projects p ON p.department_id = d.id AND p.deleted_at IS NULL AND p.is_template = 0
            WHERE d.status = 'active' AND d.deleted_at IS NULL
-           GROUP BY d.id, d.name ORDER BY d.name`,
+           GROUP BY d.id, d.name, d.status, mgr.name, mgr.first_name, mgr.last_name ORDER BY d.name`,
           [],
           []
         );
@@ -245,6 +248,63 @@ export const GET = withAuth(
         [{ total: 0, active: 0, completed: 0, planning: 0 }]
       );
 
+      // 16. Employees detail list (recent 10)
+      const employeesDetail = await safeQuery<any[]>(
+        `SELECT u.id, COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name)) as full_name,
+          u.email, u.job_title, u.status, u.last_login_at,
+          d.name as department_name
+         FROM users u
+         LEFT JOIN departments d ON u.department_id = d.id
+         WHERE u.deleted_at IS NULL
+         ORDER BY u.created_at DESC LIMIT 10`,
+        [],
+        []
+      );
+
+      // 17. Employees by status (for chart)
+      const employeesByStatus = await safeQuery<any[]>(
+        `SELECT u.status, COUNT(*) as count
+         FROM users u WHERE u.deleted_at IS NULL
+         GROUP BY u.status`,
+        [],
+        []
+      );
+
+      // 18. Employees by department (for chart)
+      const employeesByDept = await safeQuery<any[]>(
+        `SELECT COALESCE(d.name, 'Unassigned') as department_name, COUNT(*) as count
+         FROM users u
+         LEFT JOIN departments d ON u.department_id = d.id AND d.deleted_at IS NULL
+         WHERE u.deleted_at IS NULL AND u.status = 'active'
+         GROUP BY d.name ORDER BY count DESC LIMIT 10`,
+        [],
+        []
+      );
+
+      // 19. Assets detail list (recent 10)
+      const assetsDetail = await safeQuery<any[]>(
+        `SELECT a.id, a.name, a.asset_tag, a.status, a.condition_status,
+          a.purchase_cost, a.current_value,
+          COALESCE(assignee.name, CONCAT(assignee.first_name, ' ', assignee.last_name)) as assigned_user,
+          d.name as department_name
+         FROM assets a
+         LEFT JOIN users assignee ON a.assigned_to = assignee.id
+         LEFT JOIN departments d ON a.department_id = d.id
+         WHERE a.deleted_at IS NULL
+         ORDER BY a.created_at DESC LIMIT 10`,
+        [],
+        []
+      );
+
+      // 20. Assets by condition (for chart)
+      const assetsByCondition = await safeQuery<any[]>(
+        `SELECT condition_status, COUNT(*) as count
+         FROM assets WHERE deleted_at IS NULL
+         GROUP BY condition_status`,
+        [],
+        []
+      );
+
       return NextResponse.json({
         success: true,
         data: {
@@ -265,6 +325,11 @@ export const GET = withAuth(
           assets: assetSummary[0],
           expenses: expenseSummary[0],
           sprints: sprintSummary[0],
+          employeesDetail,
+          employeesByStatus,
+          employeesByDept,
+          assetsDetail,
+          assetsByCondition,
         }
       });
     } catch (error: any) {

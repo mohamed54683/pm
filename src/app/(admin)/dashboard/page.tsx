@@ -23,6 +23,11 @@ interface DashboardData {
   assets: { total: number; available: number; assigned: number; maintenance: number; retired: number };
   expenses: { total_amount: number; approved_amount: number; pending_amount: number; total_count: number };
   sprints: { total: number; active: number; completed: number; planning: number };
+  employeesDetail: any[];
+  employeesByStatus: any[];
+  employeesByDept: any[];
+  assetsDetail: any[];
+  assetsByCondition: any[];
 }
 
 const statusBadge: Record<string, string> = {
@@ -363,36 +368,248 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Department Breakdown */}
+        {/* ──────── Departments Section ──────── */}
         {data.departmentBreakdown.length > 0 && (
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">Department Breakdown</h3>
+              <h3 className="card-title">Departments</h3>
+              <Link href="/departments" className="btn-ghost text-xs">View All {Icons.arrow}</Link>
             </div>
-            <div className="card-body">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {data.departmentBreakdown.map((dept: any) => (
-                  <div key={dept.id} className="rounded-lg border border-gray-100 p-4 transition-colors hover:bg-gray-50/50 dark:border-gray-800 dark:hover:bg-gray-800/30">
-                    <h4 className="font-semibold text-gray-900 dark:text-white">{dept.department_name}</h4>
-                    <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                      {[
-                        { label: "Projects", val: dept.project_count || 0, cls: "text-blue-600 dark:text-blue-400" },
-                        { label: "Active", val: dept.active_projects || 0, cls: "text-emerald-600 dark:text-emerald-400" },
-                        { label: "Tasks", val: dept.open_tasks || 0, cls: "text-amber-600 dark:text-amber-400" },
-                        { label: "Members", val: dept.members || 0, cls: "text-purple-600 dark:text-purple-400" },
-                      ].map((item) => (
-                        <div key={item.label}>
-                          <p className={`text-lg font-bold ${item.cls}`}>{item.val}</p>
-                          <p className="text-[11px] text-gray-400">{item.label}</p>
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead className="data-table-head">
+                  <tr>
+                    <th className="data-table-th">Department</th>
+                    <th className="data-table-th">Manager</th>
+                    <th className="data-table-th">Members</th>
+                    <th className="data-table-th">Projects</th>
+                    <th className="data-table-th">Active</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.departmentBreakdown.map((dept: any) => (
+                    <tr key={dept.id} className="data-table-row">
+                      <td className="data-table-td">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 text-xs font-bold">
+                            {dept.department_name?.charAt(0)?.toUpperCase() || "D"}
+                          </div>
+                          <span className="font-medium text-gray-900 dark:text-white">{dept.department_name}</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      </td>
+                      <td className="data-table-td">
+                        {dept.manager_name ? (
+                          <div className="flex items-center gap-2">
+                            <div className="avatar avatar-sm">{dept.manager_name.charAt(0)}</div>
+                            <span>{dept.manager_name}</span>
+                          </div>
+                        ) : <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="data-table-td">
+                        <span className="inline-flex items-center gap-1 font-medium">
+                          {Icons.users}
+                          {dept.member_count || 0}
+                        </span>
+                      </td>
+                      <td className="data-table-td font-medium">{dept.project_count || 0}</td>
+                      <td className="data-table-td">
+                        <span className="badge badge-success">{dept.active_projects || 0} active</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
+
+        {/* ──────── Employees Section ──────── */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Employee Status Chart */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Employee Status</h3>
+            </div>
+            <div className="card-body">
+              {(data.employeesByStatus || []).length === 0 ? (
+                <div className="empty-state py-10">
+                  <div className="empty-state-icon">{Icons.users}</div>
+                  <p className="empty-state-text">No employee data</p>
+                </div>
+              ) : (
+                <Chart
+                  options={{
+                    chart: { type: "donut" as const, background: "transparent", fontFamily: "Outfit, sans-serif" },
+                    labels: (data.employeesByStatus || []).map((s: any) => (s.status || "unknown").charAt(0).toUpperCase() + (s.status || "unknown").slice(1)),
+                    colors: ["#10b981", "#ef4444", "#f59e0b", "#6366f1"],
+                    legend: { position: "bottom" as const, labels: { colors: "#9ca3af" }, fontSize: "13px" },
+                    dataLabels: { enabled: false },
+                    plotOptions: { pie: { donut: { size: "72%", labels: { show: true, total: { show: true, label: "Total", fontSize: "14px", color: "#9ca3af", formatter: () => fmt(u.total) } } } } },
+                    stroke: { width: 2, colors: ["transparent"] },
+                    tooltip: { theme: "dark" },
+                  }}
+                  series={(data.employeesByStatus || []).map((s: any) => Number(s.count) || 0)}
+                  type="donut"
+                  height={280}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Employee List */}
+          <div className="lg:col-span-2 card">
+            <div className="card-header">
+              <h3 className="card-title">Recent Employees</h3>
+              <Link href="/team" className="btn-ghost text-xs">View All {Icons.arrow}</Link>
+            </div>
+            <div className="overflow-x-auto">
+              {(data.employeesDetail || []).length === 0 ? (
+                <div className="empty-state py-12">
+                  <div className="empty-state-icon">{Icons.users}</div>
+                  <p className="empty-state-text">No employees found</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead className="data-table-head">
+                    <tr>
+                      <th className="data-table-th">Name</th>
+                      <th className="data-table-th">Job Title</th>
+                      <th className="data-table-th">Department</th>
+                      <th className="data-table-th">Status</th>
+                      <th className="data-table-th">Last Login</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data.employeesDetail || []).map((emp: any) => (
+                      <tr key={emp.id} className="data-table-row">
+                        <td className="data-table-td">
+                          <div className="flex items-center gap-2.5">
+                            <div className="avatar avatar-sm">{emp.full_name?.charAt(0)?.toUpperCase() || "?"}</div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 dark:text-white truncate">{emp.full_name}</p>
+                              <p className="text-xs text-gray-400 truncate">{emp.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="data-table-td">{emp.job_title || "—"}</td>
+                        <td className="data-table-td">{emp.department_name || "—"}</td>
+                        <td className="data-table-td">
+                          <span className={`badge ${emp.status === "active" ? "badge-success" : emp.status === "inactive" ? "badge-default" : emp.status === "suspended" ? "badge-danger" : "badge-warning"}`}>
+                            {emp.status}
+                          </span>
+                        </td>
+                        <td className="data-table-td text-xs text-gray-400">
+                          {emp.last_login_at ? timeAgo(emp.last_login_at) : "Never"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ──────── Assets Section ──────── */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Asset Status Breakdown Chart */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Asset Status</h3>
+            </div>
+            <div className="card-body">
+              <Chart
+                options={{
+                  chart: { type: "donut" as const, background: "transparent", fontFamily: "Outfit, sans-serif" },
+                  labels: ["Available", "Assigned", "Maintenance", "Retired"],
+                  colors: ["#10b981", "#3b82f6", "#f59e0b", "#94a3b8"],
+                  legend: { position: "bottom" as const, labels: { colors: "#9ca3af" }, fontSize: "13px" },
+                  dataLabels: { enabled: false },
+                  plotOptions: { pie: { donut: { size: "72%", labels: { show: true, total: { show: true, label: "Total", fontSize: "14px", color: "#9ca3af", formatter: () => fmt(a.total) } } } } },
+                  stroke: { width: 2, colors: ["transparent"] },
+                  tooltip: { theme: "dark" },
+                }}
+                series={[Number(a.available)||0, Number(a.assigned)||0, Number(a.maintenance)||0, Number(a.retired)||0]}
+                type="donut"
+                height={280}
+              />
+            </div>
+          </div>
+
+          {/* Asset Condition Chart */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Asset Condition</h3>
+            </div>
+            <div className="card-body">
+              {(data.assetsByCondition || []).length === 0 ? (
+                <div className="empty-state py-10">
+                  <div className="empty-state-icon">{Icons.asset}</div>
+                  <p className="empty-state-text">No asset data</p>
+                </div>
+              ) : (
+                <Chart
+                  options={{
+                    chart: { type: "bar" as const, background: "transparent", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
+                    xaxis: {
+                      categories: (data.assetsByCondition || []).map((c: any) => (c.condition_status || "unknown").charAt(0).toUpperCase() + (c.condition_status || "unknown").slice(1)),
+                      labels: { style: { colors: "#9ca3af", fontSize: "12px" } },
+                    },
+                    yaxis: { labels: { style: { colors: "#9ca3af", fontSize: "12px" } } },
+                    colors: ["#8b5cf6"],
+                    plotOptions: { bar: { borderRadius: 6, columnWidth: "50%", distributed: true } },
+                    dataLabels: { enabled: false },
+                    grid: { borderColor: "#1f2937", strokeDashArray: 4 },
+                    tooltip: { theme: "dark" },
+                    legend: { show: false },
+                  }}
+                  series={[{ name: "Assets", data: (data.assetsByCondition || []).map((c: any) => Number(c.count) || 0) }]}
+                  type="bar"
+                  height={280}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Asset List Card */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Recent Assets</h3>
+              <Link href="/assets" className="btn-ghost text-xs">View All {Icons.arrow}</Link>
+            </div>
+            <div className="card-body">
+              {(data.assetsDetail || []).length === 0 ? (
+                <div className="empty-state py-10">
+                  <div className="empty-state-icon">{Icons.asset}</div>
+                  <p className="empty-state-text">No assets found</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                  {(data.assetsDetail || []).map((asset: any) => {
+                    const condCls: Record<string, string> = { new: "text-green-500", good: "text-blue-500", fair: "text-amber-500", poor: "text-orange-500", damaged: "text-red-500" };
+                    const statusCls: Record<string, string> = { available: "badge-success", assigned: "badge-info", maintenance: "badge-warning", in_transfer: "badge-purple", depreciated: "badge-default", scrapped: "badge-default", lost: "badge-danger" };
+                    return (
+                      <div key={asset.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3 transition-all hover:border-gray-200 hover:bg-gray-50/80 dark:border-gray-800 dark:hover:border-gray-700 dark:hover:bg-gray-800/50">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono text-gray-400">{asset.asset_tag}</span>
+                            <span className={`text-xs font-semibold ${condCls[asset.condition_status] || "text-gray-400"}`}>{asset.condition_status}</span>
+                          </div>
+                          <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{asset.name}</p>
+                          {asset.department_name && <p className="text-xs text-gray-400">{asset.department_name}</p>}
+                        </div>
+                        <div className="ml-3 flex flex-col items-end gap-1">
+                          <span className={`badge ${statusCls[asset.status] || "badge-default"}`}>{asset.status?.replace(/_/g, " ")}</span>
+                          {asset.assigned_user && <span className="text-xs text-gray-400">{asset.assigned_user}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Recent Activity */}
         <div className="card">
