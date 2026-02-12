@@ -249,19 +249,19 @@ export default function TimeTrackingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Time Tracking</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Time Tracking</h1>
+            <p className="page-subtitle">
               Log and manage your time entries
             </p>
           </div>
           <button 
             onClick={() => setShowLogModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            className="btn-primary">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -321,15 +321,15 @@ export default function TimeTrackingPage() {
         {summary && (
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Hours</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{(summary.totalHours || 0).toFixed(1)}h</p>
+              <p className="page-subtitle">Total Hours</p>
+              <p className="page-title">{(summary.totalHours || 0).toFixed(1)}h</p>
             </div>
             <div className="rounded-xl bg-green-50 p-4 shadow-sm dark:bg-green-900/20">
               <p className="text-sm text-green-600 dark:text-green-400">Billable</p>
               <p className="text-2xl font-bold text-green-700 dark:text-green-300">{(summary.billableHours || 0).toFixed(1)}h</p>
             </div>
             <div className="rounded-xl bg-gray-50 p-4 shadow-sm dark:bg-gray-700">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Non-Billable</p>
+              <p className="page-subtitle">Non-Billable</p>
               <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{(summary.nonBillableHours || 0).toFixed(1)}h</p>
             </div>
             <div className="rounded-xl bg-amber-50 p-4 shadow-sm dark:bg-amber-900/20">
@@ -365,7 +365,7 @@ export default function TimeTrackingPage() {
             {Object.entries(groupedEntries).map(([group, groupEntries]) => {
               const groupTotal = groupEntries.reduce((sum, e) => sum + e.hours, 0);
               return (
-                <div key={group} className="rounded-xl bg-white shadow-sm dark:bg-gray-800">
+                <div key={group} className="card">
                   <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
                     <h3 className="font-semibold text-gray-900 dark:text-white">
                       {groupBy === 'date' ? formatDate(group) : group}
@@ -429,7 +429,7 @@ export default function TimeTrackingPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Log Time Entry</h2>
           <form onSubmit={handleLogTime} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project *</label>
+              <label className="form-label">Project *</label>
               <select
                 value={newEntry.project_id}
                 onChange={(e) => {
@@ -437,7 +437,7 @@ export default function TimeTrackingPage() {
                   if (e.target.value) loadTasks(e.target.value);
                 }}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
               >
                 <option value="">Select a project</option>
                 {projects.map(p => (
@@ -446,11 +446,11 @@ export default function TimeTrackingPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task (Optional)</label>
+              <label className="form-label">Task (Optional)</label>
               <select
                 value={newEntry.task_id}
                 onChange={(e) => setNewEntry({ ...newEntry, task_id: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
                 disabled={!newEntry.project_id}
               >
                 <option value="">General project time</option>
@@ -461,7 +461,7 @@ export default function TimeTrackingPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hours *</label>
+                <label className="form-label">Hours *</label>
                 <input
                   type="number"
                   value={newEntry.hours}
@@ -470,28 +470,28 @@ export default function TimeTrackingPage() {
                   min="0.25"
                   step="0.25"
                   max="24"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input"
                   placeholder="e.g., 2.5"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date *</label>
+                <label className="form-label">Date *</label>
                 <input
                   type="date"
                   value={newEntry.work_date}
                   onChange={(e) => setNewEntry({ ...newEntry, work_date: e.target.value })}
                   required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <label className="form-label">Description</label>
               <textarea
                 value={newEntry.description}
                 onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
                 rows={3}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
                 placeholder="What did you work on?"
               />
             </div>

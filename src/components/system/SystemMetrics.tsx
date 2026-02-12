@@ -212,7 +212,7 @@ export default function SystemMetrics() {
               <span className="text-xl">✅</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.completedToday}</div>
+              <div className="page-title">{metrics.completedToday}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Completed Today</div>
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function SystemMetrics() {
               <span className="text-xl">⏳</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.pendingActions}</div>
+              <div className="page-title">{metrics.pendingActions}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Pending Actions</div>
             </div>
           </div>
@@ -236,7 +236,7 @@ export default function SystemMetrics() {
               <span className="text-xl">🚨</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.criticalAlerts}</div>
+              <div className="page-title">{metrics.criticalAlerts}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Critical Alerts</div>
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function SystemMetrics() {
               <span className="text-xl">⚡</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.efficiencyScore}%</div>
+              <div className="page-title">{metrics.efficiencyScore}%</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Efficiency Score</div>
             </div>
           </div>

@@ -122,14 +122,14 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
     await query(
       `INSERT INTO sprints (id, project_id, name, goal, start_date, end_date, capacity_hours, status, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'planning', ?)`,
-      [id, project_id, name, goal || null, start_date, end_date, capacity_hours || null, user.id]
+      [id, project_id, name, goal || null, start_date, end_date, capacity_hours || null, user.userId]
     );
 
     // Log activity
     await query(
       `INSERT INTO project_activity_log (id, project_id, entity_id, entity_type, action, details, user_id)
        VALUES (?, ?, ?, 'sprint', 'created', ?, ?)`,
-      [generateId('act'), project_id, id, JSON.stringify({ name, start_date, end_date }), user.id]
+      [generateId('act'), project_id, id, JSON.stringify({ name, start_date, end_date }), user.userId]
     );
 
     const sprints = await query('SELECT * FROM sprints WHERE id = ?', [id]);
@@ -200,7 +200,7 @@ async function handlePut(request: NextRequest, user: DecodedToken) {
           `INSERT INTO sprint_tasks (sprint_id, task_id, story_points, added_by)
            VALUES (?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE removed_at = NULL, story_points = VALUES(story_points)`,
-          [id, task.task_id, task.story_points || null, user.id]
+          [id, task.task_id, task.story_points || null, user.userId]
         );
 
         // Update task's sprint_id
@@ -213,7 +213,7 @@ async function handlePut(request: NextRequest, user: DecodedToken) {
       for (const taskId of remove_tasks) {
         await query(
           `UPDATE sprint_tasks SET removed_at = NOW(), removed_by = ? WHERE sprint_id = ? AND task_id = ?`,
-          [user.id, id, taskId]
+          [user.userId, id, taskId]
         );
 
         // Clear task's sprint_id

@@ -22,11 +22,12 @@ export default function SignInForm() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/signin', {
+      const response = await fetch('/api/auth/signin/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
 
@@ -39,17 +40,9 @@ export default function SignInForm() {
         localStorage.setItem("userName", result.user.name);
         localStorage.setItem("userRole", result.user.role);
         
-        // Fetch user's assigned restaurants from database
-        const restaurantsResponse = await fetch(`/api/qms/user-restaurants?userId=${result.user.id}`);
-        const restaurantsResult = await restaurantsResponse.json();
-        
-        if (restaurantsResult.success) {
-          localStorage.setItem("userRestaurants", JSON.stringify(restaurantsResult.data));
-        }
-        
         document.cookie = `isAuthenticated=true; path=/; max-age=${isChecked ? 30 * 24 * 60 * 60 : 24 * 60 * 60}`;
         
-        router.push("/");
+        window.location.href = '/dashboard';
       } else {
         setError(result.message || "Invalid email or password. Please try again.");
         setIsLoading(false);
@@ -76,7 +69,7 @@ export default function SignInForm() {
               Welcome Back
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Sign in to access your GHIDAS admin dashboard
+              Sign in to access your GHIDAS Project Managment
             </p>
           </div>
 

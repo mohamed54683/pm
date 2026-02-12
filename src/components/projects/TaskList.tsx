@@ -16,12 +16,12 @@ interface TaskListProps {
 }
 
 const statusColors: Record<TaskStatus, string> = {
-  not_started: 'bg-gray-100 text-gray-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  in_review: 'bg-purple-100 text-purple-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-  blocked: 'bg-orange-100 text-orange-700'
+  not_started: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  in_review: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  blocked: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
 };
 
 const priorityColors: Record<TaskPriority, string> = {

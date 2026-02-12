@@ -93,17 +93,17 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Users & Roles</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Users & Roles</h1>
+            <p className="page-subtitle">
               Manage system users and role-based access control
             </p>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+          <button className="btn-primary">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -140,7 +140,7 @@ export default function UsersPage() {
         {activeTab === 'users' && (
           <>
             {/* Filters */}
-            <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+            <div className="filter-bar mb-6">
               <form onSubmit={handleSearch} className="flex flex-1 items-center gap-2">
                 <div className="relative flex-1">
                   <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,7 +151,7 @@ export default function UsersPage() {
                     placeholder="Search users..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className="form-input pl-10"
                   />
                 </div>
                 <button type="submit" className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">
@@ -161,7 +161,7 @@ export default function UsersPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => { setFilterStatus(e.target.value); }}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-select"
               >
                 <option value="">All Status</option>
                 <option value="active">Active</option>
@@ -172,7 +172,7 @@ export default function UsersPage() {
             </div>
 
             {/* Users Table */}
-            <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+            <div className="card">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
@@ -184,14 +184,14 @@ export default function UsersPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800/50">
+                    <thead className="bg-gray-50/80 dark:bg-gray-800/50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Role</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Department</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Last Login</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Actions</th>
+                        <th className="data-table-th">User</th>
+                        <th className="data-table-th">Role</th>
+                        <th className="data-table-th">Department</th>
+                        <th className="data-table-th">Status</th>
+                        <th className="data-table-th">Last Login</th>
+                        <th className="data-table-th">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -257,7 +257,7 @@ export default function UsersPage() {
               </div>
             ) : (
               roles.map((role) => (
-                <div key={role.id} className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                <div key={role.id} className="card p-6">
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="font-semibold text-gray-900 dark:text-white">{role.name}</h3>

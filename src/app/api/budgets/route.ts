@@ -1,114 +1,175 @@
+/**
+ * Budgets API - Department-based access control
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { withAuth } from '@/lib/middleware/auth';
+import { sanitizeString, stripDangerousTags } from '@/lib/sanitize';
+import { DecodedToken } from '@/lib/auth';
+import { getAccessContext, buildEntityAccessFilter, canAccessProject } from '@/lib/project-access';
 
-interface QueryRow {
-  [key: string]: string | number | null | undefined;
-}
+// GET
+export const GET = withAuth(
+  async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
+    try {
+      const ctx = await getAccessContext(user.userId);
+      const { searchParams } = new URL(request.url);
+      const id = searchParams.get('id');
+      const project_id = searchParams.get('project_id');
 
-// GET - List budgets
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
+      if (id) {
+        const budgets = await query<any[]>(
+          `SELECT pb.*, p.name as project_name, p.code as project_code, p.budget as project_budget, p.actual_cost,
+            u.name as approved_by_name,
+            (SELECT COALESCE(SUM(amount),0) FROM expenses WHERE project_id = p.id AND status = 'approved') as total_expenses,
+            (SELECT COALESCE(SUM(hours * COALESCE(pm2.hourly_rate,0)),0) FROM time_entries te
+              LEFT JOIN project_members pm2 ON te.user_id = pm2.user_id AND te.project_id = pm2.project_id
+              WHERE te.project_id = p.id AND te.status = 'approved') as labor_cost
+           FROM project_budgets pb
+           JOIN projects p ON pb.project_id = p.id
+           LEFT JOIN users u ON pb.approved_by = u.id
+           WHERE pb.id = ?`, [id]
+        );
+        if (!budgets.length) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+        if (!canAccessProject(ctx, budgets[0].project_id))
+          return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+        return NextResponse.json({ success: true, data: budgets[0] });
+      }
 
-    let whereClause = 'pb.deleted_at IS NULL';
-    const params: (string | number)[] = [];
+      const accessFilter = buildEntityAccessFilter(ctx, 'p');
+      let sql = `
+        SELECT pb.*, p.name as project_name, p.code as project_code, p.budget as project_budget,
+          p.actual_cost, p.department_id, d.name as department_name,
+          (SELECT COALESCE(SUM(amount),0) FROM expenses WHERE project_id = p.id AND status = 'approved') as total_expenses
+        FROM project_budgets pb
+        JOIN projects p ON pb.project_id = p.id
+        LEFT JOIN departments d ON p.department_id = d.id
+        WHERE p.deleted_at IS NULL AND ${accessFilter.sql}
+      `;
+      const params: any[] = [...accessFilter.params];
+      if (project_id) { sql += ` AND pb.project_id = ?`; params.push(project_id); }
+      sql += ` ORDER BY pb.fiscal_year DESC, p.name`;
 
-    if (projectId) {
-      whereClause += ' AND pb.project_id = ?';
-      params.push(projectId);
+      const budgets = await query<any[]>(sql, params);
+
+      // Budget overview
+      const ovAccessFilter = buildEntityAccessFilter(ctx, 'p');
+      const overview = await query<any[]>(
+        `SELECT COALESCE(SUM(pb.total_budget),0) as total_budget,
+          COALESCE(SUM(pb.approved_budget),0) as approved_budget,
+          COALESCE(SUM(pb.actual_spent),0) as actual_spent,
+          COALESCE(SUM(pb.remaining),0) as remaining,
+          COUNT(DISTINCT pb.project_id) as project_count
+         FROM project_budgets pb
+         JOIN projects p ON pb.project_id = p.id
+         WHERE p.deleted_at IS NULL AND ${ovAccessFilter.sql}`, [...ovAccessFilter.params]
+      );
+
+      return NextResponse.json({ success: true, data: budgets, overview: overview[0] });
+    } catch (error) {
+      console.error('Budgets GET error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to fetch budgets' }, { status: 500 });
     }
+  },
+  { requiredPermissions: ['budgets.view'], checkCsrf: false }
+);
 
-    const budgets = await query<QueryRow[]>(`
-      SELECT 
-        pb.id, pb.uuid, pb.name, pb.budget_type, pb.fiscal_year, pb.status,
-        pb.currency, pb.total_budget, pb.allocated_budget, pb.spent_budget,
-        pb.remaining_budget, pb.contingency_budget, pb.contingency_used,
-        pb.start_date, pb.end_date, pb.project_id, pb.created_at,
-        p.code as project_code, p.name as project_name,
-        ROUND((pb.spent_budget / NULLIF(pb.total_budget, 0)) * 100, 1) as spent_percentage,
-        -- Cost Performance Index
-        CASE WHEN pb.spent_budget > 0 THEN 
-          ROUND((SELECT COALESCE(SUM(ev.earned_value), 0) FROM earned_value_snapshots ev WHERE ev.project_id = pb.project_id) / pb.spent_budget, 2)
-        ELSE 1 END as cpi
-      FROM project_budgets pb
-      LEFT JOIN projects p ON pb.project_id = p.id
-      WHERE ${whereClause}
-      ORDER BY pb.created_at DESC
-    `, params);
+// POST
+export const POST = withAuth(
+  async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
+    try {
+      const ctx = await getAccessContext(user.userId);
+      const body = await request.json();
+      const { project_id, fiscal_year, total_budget, approved_budget, notes } = body;
 
-    // Get budget line items for each budget
-    for (const budget of budgets) {
-      const lineItems = await query<QueryRow[]>(`
-        SELECT bli.*, bc.name as category_name
-        FROM budget_line_items bli
-        LEFT JOIN budget_categories bc ON bli.category_id = bc.id
-        WHERE bli.budget_id = ? AND bli.deleted_at IS NULL
-        ORDER BY bli.created_at
-      `, [budget.id]);
-      (budget as Record<string, unknown>).line_items = lineItems;
+      if (!project_id || !total_budget)
+        return NextResponse.json({ success: false, error: 'Project and total budget required' }, { status: 400 });
+      if (!canAccessProject(ctx, project_id))
+        return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+
+      const result = await query<any>(
+        `INSERT INTO project_budgets (project_id, fiscal_year, total_budget, approved_budget, remaining, notes)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [project_id, fiscal_year || new Date().getFullYear(), total_budget,
+         approved_budget || total_budget, total_budget, stripDangerousTags(notes) || null]
+      );
+
+      return NextResponse.json({ success: true, data: { id: result.insertId } }, { status: 201 });
+    } catch (error) {
+      console.error('Budgets POST error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to create budget' }, { status: 500 });
     }
+  },
+  { requiredPermissions: ['budgets.create'] }
+);
 
-    // Summary stats
-    const summary = await query<QueryRow[]>(`
-      SELECT 
-        COALESCE(SUM(total_budget), 0) as total_budget_all,
-        COALESCE(SUM(spent_budget), 0) as total_spent_all,
-        COALESCE(SUM(remaining_budget), 0) as total_remaining_all,
-        COUNT(*) as budget_count
-      FROM project_budgets WHERE deleted_at IS NULL ${projectId ? 'AND project_id = ?' : ''}
-    `, projectId ? [projectId] : []);
+// PUT
+export const PUT = withAuth(
+  async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
+    try {
+      const ctx = await getAccessContext(user.userId);
+      const body = await request.json();
+      const { id, total_budget, approved_budget, actual_spent, status, notes } = body;
 
-    return NextResponse.json({ 
-      success: true, 
-      data: budgets,
-      summary: summary[0] || {}
-    });
-  } catch (error: unknown) {
-    console.error('Budgets API error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to load budgets';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
-}
+      if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
 
-// POST - Create budget
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const {
-      project_id, name, budget_type, fiscal_year, total_budget, currency,
-      contingency_budget, start_date, end_date
-    } = body;
+      const [budget] = await query<any[]>(`SELECT project_id FROM project_budgets WHERE id = ?`, [id]);
+      if (!budget) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+      if (!canAccessProject(ctx, budget.project_id))
+        return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
-    if (!project_id || !name || !total_budget) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Project, name, and total budget required' 
-      }, { status: 400 });
+      const updates: string[] = [];
+      const params: any[] = [];
+      if (total_budget !== undefined) { updates.push('total_budget = ?'); params.push(total_budget); }
+      if (approved_budget !== undefined) { updates.push('approved_budget = ?'); params.push(approved_budget); }
+      if (actual_spent !== undefined) { updates.push('actual_spent = ?'); params.push(actual_spent); }
+      if (status) {
+        updates.push('status = ?'); params.push(status);
+        if (status === 'approved') { updates.push('approved_by = ?, approved_at = NOW()'); params.push(user.userId); }
+      }
+      if (notes !== undefined) { updates.push('notes = ?'); params.push(stripDangerousTags(notes)); }
+
+      // Recalculate remaining
+      if (total_budget !== undefined || actual_spent !== undefined) {
+        updates.push('remaining = COALESCE(?, total_budget) - COALESCE(?, actual_spent)');
+        params.push(total_budget ?? null, actual_spent ?? null);
+      }
+
+      if (updates.length) {
+        updates.push('updated_at = NOW()');
+        params.push(id);
+        await query(`UPDATE project_budgets SET ${updates.join(', ')} WHERE id = ?`, params);
+      }
+
+      return NextResponse.json({ success: true, message: 'Budget updated' });
+    } catch (error) {
+      console.error('Budgets PUT error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to update budget' }, { status: 500 });
     }
+  },
+  { requiredPermissions: ['budgets.edit'] }
+);
 
-    const uuid = crypto.randomUUID();
-    const remaining = Number(total_budget) - (Number(contingency_budget) || 0);
+// DELETE
+export const DELETE = withAuth(
+  async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
+    try {
+      const ctx = await getAccessContext(user.userId);
+      const { searchParams } = new URL(request.url);
+      const id = searchParams.get('id');
+      if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
 
-    const result = await query<{ insertId: number }>(`
-      INSERT INTO project_budgets (
-        uuid, project_id, name, budget_type, fiscal_year, status, currency,
-        total_budget, allocated_budget, spent_budget, remaining_budget,
-        contingency_budget, start_date, end_date
-      ) VALUES (?, ?, ?, ?, ?, 'draft', ?, ?, 0, 0, ?, ?, ?, ?)
-    `, [
-      uuid, project_id, name, budget_type || 'project', fiscal_year || new Date().getFullYear(),
-      currency || 'USD', total_budget, remaining, contingency_budget || 0,
-      start_date || null, end_date || null
-    ]);
+      const [budget] = await query<any[]>(`SELECT project_id FROM project_budgets WHERE id = ?`, [id]);
+      if (!budget) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+      if (!canAccessProject(ctx, budget.project_id))
+        return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
-    return NextResponse.json({
-      success: true,
-      data: { id: result.insertId, uuid, name }
-    }, { status: 201 });
-  } catch (error: unknown) {
-    console.error('Create budget error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to create budget';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
-}
+      await query(`DELETE FROM project_budgets WHERE id = ?`, [id]);
+      return NextResponse.json({ success: true, message: 'Deleted' });
+    } catch (error) {
+      console.error('Budgets DELETE error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to delete' }, { status: 500 });
+    }
+  },
+  { requiredPermissions: ['budgets.delete'] }
+);

@@ -27,17 +27,17 @@ export const AUTH_CONFIG = {
   // Rate Limiting
   rateLimit: {
     login: {
-      points: 5,           // 5 attempts
-      duration: 60,        // per 60 seconds
-      blockDuration: 300,  // block for 5 minutes
+      points: 5,
+      duration: 60,
+      blockDuration: 300,
     },
     api: {
-      points: 100,         // 100 requests
-      duration: 60,        // per 60 seconds
+      points: 100,
+      duration: 60,
     },
     passwordReset: {
       points: 3,
-      duration: 3600,      // 3 attempts per hour
+      duration: 3600,
     },
   },
 
@@ -51,15 +51,15 @@ export const AUTH_CONFIG = {
     sameSite: 'strict' as const,
     path: '/',
     maxAge: {
-      accessToken: 15 * 60,           // 15 minutes
-      refreshToken: 7 * 24 * 60 * 60, // 7 days
+      accessToken: 15 * 60,
+      refreshToken: 7 * 24 * 60 * 60,
     },
   },
 
   // Session Settings
   session: {
-    idleTimeout: 30 * 60 * 1000, // 30 minutes
-    absoluteTimeout: 24 * 60 * 60 * 1000, // 24 hours
+    idleTimeout: 30 * 60 * 1000,
+    absoluteTimeout: 24 * 60 * 60 * 1000,
   },
 };
 
@@ -127,6 +127,39 @@ export const PERMISSIONS = {
   'action_plans.edit': 'Edit action plans',
   'action_plans.delete': 'Delete action plans',
 
+  // Change Requests
+  'change_requests.view': 'View change requests',
+  'change_requests.create': 'Create change requests',
+  'change_requests.edit': 'Edit change requests',
+  'change_requests.delete': 'Delete change requests',
+  'change_requests.approve': 'Approve change requests',
+
+  // Releases
+  'releases.view': 'View releases',
+  'releases.create': 'Create releases',
+  'releases.edit': 'Edit releases',
+  'releases.delete': 'Delete releases',
+
+  // Budgets & Expenses
+  'budgets.view': 'View budgets',
+  'budgets.create': 'Create budgets',
+  'budgets.edit': 'Edit budgets',
+  'budgets.delete': 'Delete budgets',
+  'budgets.approve': 'Approve budgets',
+
+  'expenses.view': 'View expenses',
+  'expenses.create': 'Create expenses',
+  'expenses.edit': 'Edit expenses',
+  'expenses.delete': 'Delete expenses',
+  'expenses.approve': 'Approve expenses',
+
+  // Time Tracking
+  'timesheets.view': 'View timesheets',
+  'timesheets.create': 'Create timesheets',
+  'timesheets.edit': 'Edit timesheets',
+  'timesheets.delete': 'Delete timesheets',
+  'timesheets.approve': 'Approve timesheets',
+
   // Settings
   'settings.view': 'View settings',
   'settings.edit': 'Edit settings',
@@ -150,6 +183,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'audits.view', 'audits.create', 'audits.edit', 'audits.approve',
     'reports.view', 'reports.create', 'reports.edit', 'reports.export',
     'action_plans.view', 'action_plans.create', 'action_plans.edit',
+    'change_requests.view', 'change_requests.create', 'change_requests.edit', 'change_requests.approve',
+    'releases.view', 'releases.create', 'releases.edit', 'releases.delete',
+    'budgets.view', 'budgets.create', 'budgets.edit', 'budgets.approve',
+    'expenses.view', 'expenses.create', 'expenses.edit', 'expenses.approve',
+    'timesheets.view', 'timesheets.create', 'timesheets.edit', 'timesheets.approve',
     'settings.view',
     'dashboard.view', 'dashboard.analytics',
   ],
@@ -161,6 +199,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'risks.view', 'risks.create', 'risks.edit',
     'issues.view', 'issues.create', 'issues.edit',
     'reports.view', 'reports.create', 'reports.edit',
+    'change_requests.view', 'change_requests.create', 'change_requests.edit',
+    'releases.view', 'releases.create', 'releases.edit',
+    'budgets.view', 'budgets.create', 'budgets.edit',
+    'expenses.view', 'expenses.create', 'expenses.edit', 'expenses.approve',
+    'timesheets.view', 'timesheets.edit', 'timesheets.approve',
     'dashboard.view', 'dashboard.analytics',
   ],
   'Manager': [
@@ -173,6 +216,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'audits.view', 'audits.create', 'audits.edit',
     'reports.view', 'reports.create', 'reports.edit',
     'action_plans.view', 'action_plans.create', 'action_plans.edit',
+    'change_requests.view', 'change_requests.create', 'change_requests.edit',
+    'releases.view', 'releases.edit',
+    'budgets.view', 'budgets.edit',
+    'expenses.view', 'expenses.create', 'expenses.edit',
+    'timesheets.view', 'timesheets.edit', 'timesheets.approve',
     'dashboard.view', 'dashboard.analytics',
   ],
   'Team Member': [
@@ -182,6 +230,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'risks.view', 'risks.create',
     'issues.view', 'issues.create',
     'reports.view',
+    'change_requests.view', 'change_requests.create',
+    'releases.view',
+    'expenses.view', 'expenses.create',
+    'timesheets.view', 'timesheets.create', 'timesheets.edit',
     'dashboard.view',
   ],
   'Auditor': [
@@ -190,6 +242,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'audits.view', 'audits.create',
     'reports.view', 'reports.create',
     'action_plans.view',
+    'change_requests.view',
     'dashboard.view',
   ],
   'Viewer': [
@@ -198,6 +251,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'sprints.view',
     'audits.view',
     'reports.view',
+    'change_requests.view',
+    'releases.view',
+    'budgets.view',
+    'expenses.view',
+    'timesheets.view',
     'dashboard.view',
   ],
 };

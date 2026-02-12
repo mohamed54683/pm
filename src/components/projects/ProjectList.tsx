@@ -14,18 +14,18 @@ interface ProjectListProps {
 }
 
 const statusColors: Record<ProjectStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  active: 'bg-green-100 text-green-700',
-  on_hold: 'bg-yellow-100 text-yellow-700',
-  completed: 'bg-blue-100 text-blue-700',
-  cancelled: 'bg-red-100 text-red-700'
+  draft: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  on_hold: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
 };
 
 const priorityColors: Record<ProjectPriority, string> = {
-  low: 'bg-gray-100 text-gray-600',
-  medium: 'bg-blue-100 text-blue-600',
-  high: 'bg-orange-100 text-orange-600',
-  critical: 'bg-red-100 text-red-600'
+  low: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+  medium: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+  high: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
+  critical: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
 };
 
 export default function ProjectList({ 
@@ -109,7 +109,7 @@ export default function ProjectList({
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Projects</h1>
+          <h1 className="page-title">Projects</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Manage your projects and track progress
           </p>

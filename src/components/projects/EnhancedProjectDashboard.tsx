@@ -143,7 +143,7 @@ export default function EnhancedProjectDashboard({ projectId }: EnhancedProjectD
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{project.name}</h1>
+            <h1 className="page-title">{project.name}</h1>
             {project.description && (
               <p className="text-gray-600 dark:text-gray-400 mt-1">{project.description}</p>
             )}

@@ -150,9 +150,9 @@ export default function TaskDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center gap-4 mb-4">
           <button
             onClick={() => router.back()}
@@ -167,7 +167,7 @@ export default function TaskDetailPage() {
             <span className="font-mono text-sm text-gray-500">{task.task_key}</span>
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{task.title}</h1>
+        <h1 className="page-title">{task.title}</h1>
         <div className="flex items-center gap-3 mt-2">
           <Link
             href={`/projects/${task.project_id}`}
@@ -189,7 +189,7 @@ export default function TaskDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Description */}
-            <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <div className="card p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Description</h2>
               {task.description ? (
                 <div className="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300">
@@ -202,7 +202,7 @@ export default function TaskDetailPage() {
 
             {/* Checklist */}
             {task.checklists && task.checklists.length > 0 && (
-              <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+              <div className="card p-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Checklist</h2>
                 <div className="space-y-2">
                   {task.checklists.map((item) => (
@@ -223,7 +223,7 @@ export default function TaskDetailPage() {
             )}
 
             {/* Comments */}
-            <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <div className="card p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Comments ({task.comments?.length || 0})
               </h2>
@@ -235,7 +235,7 @@ export default function TaskDetailPage() {
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="Add a comment..."
                   rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input"
                 />
                 <div className="mt-2 flex justify-end">
                   <Button type="submit" size="sm" disabled={submitting || !newComment.trim()}>
@@ -273,7 +273,7 @@ export default function TaskDetailPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Status & Priority */}
-            <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <div className="card p-6">
               <h3 className="text-sm font-medium text-gray-500 mb-3">Status</h3>
               <select
                 value={task.status}
@@ -292,7 +292,7 @@ export default function TaskDetailPage() {
             </div>
 
             {/* Details */}
-            <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <div className="card p-6">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Details</h3>
               <dl className="space-y-3 text-sm">
                 {task.story_points && (
@@ -327,7 +327,7 @@ export default function TaskDetailPage() {
             </div>
 
             {/* Assignees */}
-            <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <div className="card p-6">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Assignees</h3>
               {task.assignees && task.assignees.length > 0 ? (
                 <div className="space-y-2">
@@ -350,7 +350,7 @@ export default function TaskDetailPage() {
 
             {/* Labels */}
             {task.labels && task.labels.length > 0 && (
-              <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+              <div className="card p-6">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Labels</h3>
                 <div className="flex flex-wrap gap-2">
                   {task.labels.map((label) => (

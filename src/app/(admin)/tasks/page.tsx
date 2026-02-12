@@ -38,12 +38,12 @@ const statusOptions = ['backlog', 'todo', 'in_progress', 'in_review', 'done'];
 const priorityOptions = ['low', 'medium', 'high', 'critical'];
 const typeOptions = ['epic', 'story', 'task', 'bug', 'subtask'];
 
-const statusColors: Record<string, string> = {
-  backlog: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  todo: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  in_progress: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  in_review: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  done: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+const statusBadges: Record<string, string> = {
+  backlog: 'badge badge-default',
+  todo: 'badge badge-info',
+  in_progress: 'badge badge-warning',
+  in_review: 'badge badge-purple',
+  done: 'badge badge-success',
 };
 
 const priorityColors: Record<string, string> = {
@@ -129,19 +129,19 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tasks</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Tasks</h1>
+            <p className="page-subtitle">
               {pagination.total} tasks total
             </p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="btn-primary"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -151,18 +151,18 @@ export default function TasksPage() {
         </div>
 
         {/* Filters */}
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="filter-bar">
           <input
             type="text"
             placeholder="Search tasks..."
             value={filter.search}
             onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            className="form-input"
           />
           <select
             value={filter.status}
             onChange={(e) => setFilter({ ...filter, status: e.target.value })}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            className="form-select"
           >
             <option value="">All Statuses</option>
             {statusOptions.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
@@ -170,7 +170,7 @@ export default function TasksPage() {
           <select
             value={filter.priority}
             onChange={(e) => setFilter({ ...filter, priority: e.target.value })}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            className="form-select"
           >
             <option value="">All Priorities</option>
             {priorityOptions.map(p => <option key={p} value={p}>{p}</option>)}
@@ -178,7 +178,7 @@ export default function TasksPage() {
           <select
             value={filter.type}
             onChange={(e) => setFilter({ ...filter, type: e.target.value })}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            className="form-select"
           >
             <option value="">All Types</option>
             {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
@@ -187,14 +187,14 @@ export default function TasksPage() {
       </div>
 
       {/* Task List */}
-      <div className="p-6">
-        <div className="rounded-xl bg-white shadow-sm dark:bg-gray-800">
+      <div className="page-body">
+        <div className="card">
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {tasks.map((task) => (
               <Link
                 href={`/tasks/${task.id}`}
                 key={task.id}
-                className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                className="data-table-row flex items-center gap-4"
               >
                 {/* Type Icon */}
                 <span className="text-lg" title={task.task_type}>
@@ -244,7 +244,7 @@ export default function TasksPage() {
                 )}
 
                 {/* Status */}
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[task.status]}`}>
+                <span className={statusBadges[task.status]}>
                   {task.status.replace('_', ' ')}
                 </span>
 
@@ -280,11 +280,11 @@ export default function TasksPage() {
             ))}
 
             {tasks.length === 0 && (
-              <div className="px-6 py-12 text-center">
-                <p className="text-gray-500 dark:text-gray-400">No tasks found</p>
+              <div className="empty-state">
+                <p className="empty-state-title">No tasks found</p>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="mt-4 text-blue-600 hover:underline"
+                  className="empty-state-text mt-4 text-blue-600 hover:underline"
                 >
                   Create your first task
                 </button>
@@ -362,12 +362,12 @@ export default function TasksPage() {
             }
           }} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project *</label>
+              <label className="form-label">Project *</label>
               <select
                 value={newTask.project_id}
                 onChange={(e) => setNewTask({ ...newTask, project_id: e.target.value })}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-select w-full"
               >
                 <option value="">Select a project</option>
                 {projects.map(p => (
@@ -376,43 +376,43 @@ export default function TasksPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title *</label>
+              <label className="form-label">Title *</label>
               <input
                 type="text"
                 value={newTask.title}
                 onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input w-full"
                 placeholder="Task title"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <label className="form-label">Description</label>
               <textarea
                 value={newTask.description}
                 onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
                 rows={3}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input w-full"
                 placeholder="Task description"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                <label className="form-label">Type</label>
                 <select
                   value={newTask.task_type}
                   onChange={(e) => setNewTask({ ...newTask, task_type: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-select w-full"
                 >
                   {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+                <label className="form-label">Priority</label>
                 <select
                   value={newTask.priority}
                   onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-select w-full"
                 >
                   {priorityOptions.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
@@ -420,21 +420,21 @@ export default function TasksPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
+                <label className="form-label">Due Date</label>
                 <input
                   type="date"
                   value={newTask.due_date}
                   onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input w-full"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Est. Hours</label>
+                <label className="form-label">Est. Hours</label>
                 <input
                   type="number"
                   value={newTask.estimated_hours}
                   onChange={(e) => setNewTask({ ...newTask, estimated_hours: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input w-full"
                   placeholder="Hours"
                   min="0"
                   step="0.5"

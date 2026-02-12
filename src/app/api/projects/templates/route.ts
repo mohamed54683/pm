@@ -49,7 +49,7 @@ export const GET = withAuth(
       const params: any[] = [];
 
       if (active_only) {
-        sql += ' AND is_active = TRUE';
+        sql += ' AND deleted_at IS NULL';
       }
 
       if (category) {

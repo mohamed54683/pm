@@ -1,405 +1,246 @@
 /**
- * Tasks API - Secure CRUD operations for PMP database
- * Protected with authentication and input sanitization
+ * Tasks API - Department-based access control
  */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { withAuth } from '@/lib/middleware/auth';
 import { sanitizeString, stripDangerousTags } from '@/lib/sanitize';
 import { DecodedToken } from '@/lib/auth';
+import { getAccessContext, buildEntityAccessFilter, canAccessProject } from '@/lib/project-access';
 
-// GET - Fetch tasks with filtering (requires tasks.view permission)
+// GET
 export const GET = withAuth(
-  async (request: NextRequest): Promise<NextResponse> => {
+  async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
+      const ctx = await getAccessContext(user.userId);
       const { searchParams } = new URL(request.url);
       const id = searchParams.get('id');
       const project_id = searchParams.get('project_id');
       const sprint_id = searchParams.get('sprint_id');
+      const assignee_id = searchParams.get('assignee_id');
       const status = searchParams.get('status');
       const priority = searchParams.get('priority');
-      const assignee_id = searchParams.get('assignee_id');
+      const type = searchParams.get('type');
       const search = searchParams.get('search');
-      const page = parseInt(searchParams.get('page') || '1');
-      const limit = parseInt(searchParams.get('limit') || '50');
-      const offset = (page - 1) * limit;
 
-      // If fetching a single task
       if (id) {
-        const tasks = await query<Record<string, unknown>[]>(
-          `SELECT t.*, p.name as project_name, p.code as project_code,
-            ph.name as phase_name, s.name as sprint_name,
-            (SELECT GROUP_CONCAT(u.name SEPARATOR ', ') FROM task_assignees ta JOIN users u ON ta.user_id = u.id WHERE ta.task_id = t.id) as assignee_names
+        const tasks = await query<any[]>(
+          `SELECT t.*, p.name as project_name, p.code as project_code, p.department_id,
+            s.name as sprint_name, ph.name as phase_name,
+            parent.title as parent_title,
+            GROUP_CONCAT(DISTINCT u.name) as assignee_names,
+            GROUP_CONCAT(DISTINCT CONCAT(u.id, ':', u.name, ':', COALESCE(u.email,''))) as assignee_details
            FROM tasks t
-           LEFT JOIN projects p ON t.project_id = p.id
-           LEFT JOIN project_phases ph ON t.phase_id = ph.id
+           JOIN projects p ON t.project_id = p.id
            LEFT JOIN sprints s ON t.sprint_id = s.id
-           WHERE t.id = ? AND t.deleted_at IS NULL`,
-          [id]
+           LEFT JOIN project_phases ph ON t.phase_id = ph.id
+           LEFT JOIN tasks parent ON t.parent_id = parent.id
+           LEFT JOIN task_assignees ta ON t.id = ta.task_id
+           LEFT JOIN users u ON ta.user_id = u.id
+           WHERE t.id = ? AND t.deleted_at IS NULL
+           GROUP BY t.id`, [id]
         );
-
-        if (!tasks || tasks.length === 0) {
-          return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
-        }
+        if (!tasks.length) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+        if (!canAccessProject(ctx, tasks[0].project_id))
+          return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
         const task = tasks[0];
-
-        // Fetch assignees
-        const assignees = await query<Record<string, unknown>[]>(
-          `SELECT ta.*, u.name as user_name, u.email as user_email, u.avatar
-           FROM task_assignees ta
-           JOIN users u ON ta.user_id = u.id
-           WHERE ta.task_id = ?`,
-          [id]
-        );
-
-        // Fetch checklists
-        const checklists = await query<Record<string, unknown>[]>(
-          `SELECT tc.*, u.name as completed_by_name
-           FROM task_checklists tc
-           LEFT JOIN users u ON tc.completed_by = u.id
-           WHERE tc.task_id = ?
-           ORDER BY tc.order_index`,
-          [id]
-        );
-
-        // Fetch comments
-        const comments = await query<Record<string, unknown>[]>(
-          `SELECT c.*, u.name as user_name, u.avatar as user_avatar
-           FROM task_comments c
-           JOIN users u ON c.user_id = u.id
-           WHERE c.task_id = ?
-           ORDER BY c.created_at DESC`,
-          [id]
-        );
+        const [comments, attachments, dependencies, subtasks] = await Promise.all([
+          query<any[]>(`SELECT c.*, u.name as user_name, u.avatar FROM task_comments c JOIN users u ON c.user_id = u.id WHERE c.task_id = ? ORDER BY c.created_at DESC`, [id]),
+          Promise.resolve([]),
+          query<any[]>(`SELECT td.*, t.title as dep_name, t.status as dep_status FROM task_dependencies td JOIN tasks t ON td.depends_on_task_id = t.id WHERE td.task_id = ?`, [id]),
+          query<any[]>(`SELECT id, title, task_key, status, priority FROM tasks WHERE parent_id = ? AND deleted_at IS NULL ORDER BY created_at`, [id]),
+        ]);
 
         return NextResponse.json({
           success: true,
-          data: {
-            ...task,
-            labels: task.labels ? JSON.parse(task.labels as string) : [],
-            assignees,
-            checklists,
-            comments
-          }
+          data: { ...task, custom_fields: task.custom_fields ? JSON.parse(task.custom_fields) : {}, comments, attachments, dependencies, subtasks }
         });
       }
 
-      // Build query for listing tasks
+      // List
+      const accessFilter = buildEntityAccessFilter(ctx, 'p');
       let sql = `
-        SELECT t.*, p.name as project_name, p.code as project_code,
-          ph.name as phase_name, s.name as sprint_name,
-          (SELECT GROUP_CONCAT(u.name SEPARATOR ', ') FROM task_assignees ta JOIN users u ON ta.user_id = u.id WHERE ta.task_id = t.id) as assignee_names,
-          (SELECT u.name FROM task_assignees ta JOIN users u ON ta.user_id = u.id WHERE ta.task_id = t.id LIMIT 1) as assignee_name
+        SELECT t.id, t.task_number, t.task_key, t.title, t.type, t.status, t.priority, t.severity,
+          t.story_points, t.estimated_hours, t.actual_hours, t.due_date, t.planned_start_date,
+          t.project_id, t.sprint_id, t.phase_id, t.parent_id, t.progress_percentage, t.created_at, t.updated_at,
+          p.name as project_name, p.code as project_code, p.department_id,
+          s.name as sprint_name,
+          GROUP_CONCAT(DISTINCT u.name) as assignee_names,
+          GROUP_CONCAT(DISTINCT ta.user_id) as assignee_ids,
+          (SELECT COUNT(*) FROM tasks sub WHERE sub.parent_id = t.id AND sub.deleted_at IS NULL) as subtask_count
         FROM tasks t
-        LEFT JOIN projects p ON t.project_id = p.id
-        LEFT JOIN project_phases ph ON t.phase_id = ph.id
+        JOIN projects p ON t.project_id = p.id
         LEFT JOIN sprints s ON t.sprint_id = s.id
-        WHERE t.deleted_at IS NULL
+        LEFT JOIN task_assignees ta ON t.id = ta.task_id
+        LEFT JOIN users u ON ta.user_id = u.id
+        WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND ${accessFilter.sql}
       `;
-      const params: (string | number)[] = [];
+      const params: any[] = [...accessFilter.params];
 
-      if (project_id) {
-        sql += ` AND t.project_id = ?`;
-        params.push(project_id);
-      }
-
-      if (sprint_id) {
-        sql += ` AND t.sprint_id = ?`;
-        params.push(sprint_id);
-      }
-
-      if (status && status !== 'all') {
-        sql += ` AND t.status = ?`;
-        params.push(status);
-      }
-
-      if (priority && priority !== 'all') {
-        sql += ` AND t.priority = ?`;
-        params.push(priority);
-      }
-
-      if (assignee_id) {
-        sql += ` AND EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?)`;
-        params.push(assignee_id);
-      }
-
+      if (project_id) { sql += ` AND t.project_id = ?`; params.push(project_id); }
+      if (sprint_id) { sql += ` AND t.sprint_id = ?`; params.push(sprint_id); }
+      if (status && status !== 'all') { sql += ` AND t.status = ?`; params.push(status); }
+      if (priority && priority !== 'all') { sql += ` AND t.priority = ?`; params.push(priority); }
+      if (type && type !== 'all') { sql += ` AND t.type = ?`; params.push(type); }
+      if (assignee_id) { sql += ` AND ta.user_id = ?`; params.push(assignee_id); }
       if (search) {
-        sql += ` AND (t.title LIKE ? OR t.code LIKE ? OR t.description LIKE ?)`;
-        const searchTerm = `%${search}%`;
-        params.push(searchTerm, searchTerm, searchTerm);
+        sql += ` AND (t.title LIKE ? OR t.task_key LIKE ? OR t.description LIKE ?)`;
+        const s = `%${search}%`; params.push(s, s, s);
       }
+      sql += ` GROUP BY t.id ORDER BY t.updated_at DESC`;
 
-      sql += ` ORDER BY t.priority = 'critical' DESC, t.priority = 'high' DESC, t.due_date ASC, t.created_at DESC`;
-      
-      // Get total count for pagination (with same filters)
-      const countSql = sql.replace(/SELECT[\s\S]*?FROM tasks t/, 'SELECT COUNT(*) as total FROM tasks t');
-      const countResult = await query<Record<string, unknown>[]>(countSql, params);
-      const totalCount = Number(countResult[0]?.total || 0);
-      const totalPages = Math.ceil(totalCount / limit);
-      
-      // Add pagination to the query
-      sql += ` LIMIT ? OFFSET ?`;
-      params.push(limit.toString(), offset.toString());
+      const tasks = await query<any[]>(sql, params);
 
-      const tasks = await query<Record<string, unknown>[]>(sql, params);
-
-      // Get summary counts
-      const summaryResult = await query<Record<string, unknown>[]>(`
-        SELECT
-          COUNT(*) as total,
-          SUM(CASE WHEN status IN ('todo', 'backlog') THEN 1 ELSE 0 END) as pending,
-          SUM(CASE WHEN status IN ('in_progress', 'in_review', 'testing') THEN 1 ELSE 0 END) as in_progress,
-          SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as completed,
-          SUM(CASE WHEN due_date < CURDATE() AND status NOT IN ('done', 'cancelled') THEN 1 ELSE 0 END) as overdue
-        FROM tasks
-        WHERE deleted_at IS NULL
-      `);
-
-      return NextResponse.json({
-        success: true,
-        data: tasks.map(t => ({
-          ...t,
-          labels: t.labels ? JSON.parse(t.labels as string) : [],
-        })),
-        summary: summaryResult[0],
-        pagination: {
-          page,
-          limit,
-          total: totalCount,
-          totalPages
-        }
-      });
-    } catch (error) {
-      console.error('Tasks API error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch tasks', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
+      // Summary
+      const sumFilter = buildEntityAccessFilter(ctx, 'p');
+      const summary = await query<any[]>(
+        `SELECT COUNT(*) as total,
+          SUM(CASE WHEN t.status = 'to_do' THEN 1 ELSE 0 END) as todo,
+          SUM(CASE WHEN t.status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+          SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) as done,
+          SUM(CASE WHEN t.status = 'in_review' THEN 1 ELSE 0 END) as in_review,
+          SUM(CASE WHEN t.priority = 'critical' THEN 1 ELSE 0 END) as critical,
+          SUM(CASE WHEN t.due_date < CURDATE() AND t.status NOT IN ('done','cancelled') THEN 1 ELSE 0 END) as overdue
+         FROM tasks t JOIN projects p ON t.project_id = p.id
+         WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND ${sumFilter.sql}`,
+        [...sumFilter.params]
       );
+
+      return NextResponse.json({ success: true, data: tasks, summary: summary[0] });
+    } catch (error) {
+      console.error('Tasks GET error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to fetch tasks' }, { status: 500 });
     }
   },
   { requiredPermissions: ['tasks.view'], checkCsrf: false }
 );
 
-// POST - Create a new task (requires tasks.create permission)
+// POST
 export const POST = withAuth(
   async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
+      const ctx = await getAccessContext(user.userId);
       const body = await request.json();
-      const {
-        project_id, phase_id, sprint_id, parent_task_id, title, description,
-        status, priority, task_type, start_date, due_date, estimated_hours,
-        story_points, labels, assignee_ids
-      } = body;
+      const { title, description, project_id, sprint_id, phase_id, parent_id, type, status, priority, severity, story_points, estimated_hours, start_date, due_date, assignee_ids } = body;
 
-      // Sanitize inputs
-      const sanitizedTitle = sanitizeString(title);
-      const sanitizedDescription = stripDangerousTags(description);
+      if (!sanitizeString(title)) return NextResponse.json({ success: false, error: 'Task title is required' }, { status: 400 });
+      if (!project_id) return NextResponse.json({ success: false, error: 'Project is required' }, { status: 400 });
+      if (!canAccessProject(ctx, project_id))
+        return NextResponse.json({ success: false, error: 'Access denied to project' }, { status: 403 });
 
-      if (!project_id || !sanitizedTitle) {
-        return NextResponse.json({ success: false, error: 'Project ID and title are required' }, { status: 400 });
-      }
+      // Generate task key
+      const [project] = await query<any[]>(`SELECT code FROM projects WHERE id = ?`, [project_id]);
+      const taskCount = await query<any[]>(`SELECT COUNT(*) as cnt FROM tasks WHERE project_id = ?`, [project_id]);
+      const taskNum = (taskCount[0]?.cnt || 0) + 1;
+      const taskKey = `${project?.code || 'TSK'}-${taskNum}`;
 
-      // Generate task code
-      const codeResult = await query<{ max_num: number }[]>(
-        `SELECT MAX(CAST(SUBSTRING(code, 5) AS UNSIGNED)) as max_num FROM tasks WHERE code LIKE 'TSK-%'`
-      );
-      const nextNum = (codeResult[0]?.max_num || 0) + 1;
-      const code = `TSK-${String(nextNum).padStart(3, '0')}`;
-
-      const result = await query<{ insertId: number }>(
-        `INSERT INTO tasks (uuid, code, project_id, phase_id, sprint_id, parent_task_id, title, description, status, priority, task_type, start_date, due_date, estimated_hours, story_points, labels, created_by)
-         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          code, project_id, phase_id || null, sprint_id || null, parent_task_id || null,
-          sanitizedTitle, sanitizedDescription || null,
-          status || 'todo', priority || 'medium', task_type || 'task',
-          start_date || null, due_date || null, estimated_hours || null,
-          story_points || null, labels ? JSON.stringify(labels) : null, user.userId
-        ]
+      const result = await query<any>(
+        `INSERT INTO tasks (task_number, task_key, title, description, project_id, sprint_id, phase_id, parent_id, type, status, priority, severity, story_points, estimated_hours, planned_start_date, due_date, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [taskNum, taskKey, sanitizeString(title), stripDangerousTags(description) || null,
+         project_id, sprint_id || null, phase_id || null, parent_id || null,
+         type || 'task', status || 'to_do', priority || 'medium', severity || null,
+         story_points || null, estimated_hours || null, start_date || null, due_date || null,
+         user.userId]
       );
 
       const taskId = result.insertId;
 
-      // Add assignees if provided
-      if (assignee_ids && Array.isArray(assignee_ids) && assignee_ids.length > 0) {
-        for (const userId of assignee_ids) {
-          await query(
-            `INSERT INTO task_assignees (task_id, user_id, assigned_by) VALUES (?, ?, ?)`,
-            [taskId, userId, user.userId]
-          );
-        }
+      if (assignee_ids?.length) {
+        const values = assignee_ids.map((aid: number) => `(${taskId}, ${aid})`).join(',');
+        await query(`INSERT INTO task_assignees (task_id, user_id) VALUES ${values}`);
       }
 
-      // Log activity
-      await query(
-        `INSERT INTO activity_log (user_id, project_id, task_id, action, entity_type, entity_id, description)
-         VALUES (?, ?, ?, 'created', 'task', ?, ?)`,
-        [user.userId, project_id, taskId, taskId, `Created task: ${sanitizedTitle}`]
-      );
+      await query(`INSERT INTO project_activity_log (user_id, project_id, action, entity_type, entity_id, description) VALUES (?, ?, 'created', 'task', ?, ?)`,
+        [user.userId, project_id, taskId, `Created task: ${sanitizeString(title)}`]);
 
-      return NextResponse.json({
-        success: true,
-        data: { id: taskId, code, title: sanitizedTitle }
-      }, { status: 201 });
+      return NextResponse.json({ success: true, data: { id: taskId, task_key: taskKey } }, { status: 201 });
     } catch (error) {
-      console.error('Create task error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to create task', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
-      );
+      console.error('Tasks POST error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to create task' }, { status: 500 });
     }
   },
   { requiredPermissions: ['tasks.create'] }
 );
 
-// PUT - Update a task (requires tasks.edit permission)
+// PUT
 export const PUT = withAuth(
   async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
+      const ctx = await getAccessContext(user.userId);
       const body = await request.json();
-      const {
-        id, title, description, status, priority, task_type, phase_id, sprint_id,
-        start_date, due_date, estimated_hours, actual_hours, story_points, progress,
-        labels, assignee_ids
-      } = body;
+      const { id, title, description, status, priority, severity, type, sprint_id, phase_id, parent_id, story_points, estimated_hours, actual_hours, start_date, due_date, progress_percentage, assignee_ids } = body;
 
-      if (!id) {
-        return NextResponse.json({ success: false, error: 'Task ID is required' }, { status: 400 });
+      if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
+
+      const [task] = await query<any[]>(`SELECT project_id FROM tasks WHERE id = ? AND deleted_at IS NULL`, [id]);
+      if (!task) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+      if (!canAccessProject(ctx, task.project_id))
+        return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+
+      const updates: string[] = [];
+      const params: any[] = [];
+
+      const fields: [string, any][] = [
+        ['title', title ? sanitizeString(title) : undefined],
+        ['description', description !== undefined ? stripDangerousTags(description) : undefined],
+        ['status', status], ['priority', priority], ['severity', severity], ['type', type],
+        ['sprint_id', sprint_id], ['phase_id', phase_id], ['parent_id', parent_id],
+        ['story_points', story_points], ['estimated_hours', estimated_hours],
+        ['actual_hours', actual_hours], ['planned_start_date', start_date], ['due_date', due_date],
+        ['progress_percentage', progress_percentage],
+      ];
+
+      for (const [field, value] of fields) {
+        if (value !== undefined) { updates.push(`${field} = ?`); params.push(value); }
       }
 
-      // Sanitize inputs
-      const sanitizedTitle = title ? sanitizeString(title) : null;
-      const sanitizedDescription = description ? stripDangerousTags(description) : null;
-
-      // Update completed_date if status is done
-      let completedDate = null;
-      if (status === 'done') {
-        completedDate = new Date().toISOString().split('T')[0];
+      if (updates.length) {
+        updates.push('updated_at = NOW()');
+        params.push(id);
+        await query(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`, params);
       }
 
-      await query(
-        `UPDATE tasks SET
-          title = COALESCE(?, title),
-          description = COALESCE(?, description),
-          status = COALESCE(?, status),
-          priority = COALESCE(?, priority),
-          task_type = COALESCE(?, task_type),
-          phase_id = COALESCE(?, phase_id),
-          sprint_id = COALESCE(?, sprint_id),
-          start_date = COALESCE(?, start_date),
-          due_date = COALESCE(?, due_date),
-          estimated_hours = COALESCE(?, estimated_hours),
-          actual_hours = COALESCE(?, actual_hours),
-          story_points = COALESCE(?, story_points),
-          progress = COALESCE(?, progress),
-          labels = COALESCE(?, labels),
-          completed_date = COALESCE(?, completed_date),
-          updated_at = NOW()
-         WHERE id = ?`,
-        [
-          sanitizedTitle, sanitizedDescription, status, priority, task_type, phase_id, sprint_id,
-          start_date, due_date, estimated_hours, actual_hours, story_points, progress,
-          labels ? JSON.stringify(labels) : null, completedDate, id
-        ]
-      );
-
-      // Update assignees if provided
-      if (assignee_ids && Array.isArray(assignee_ids)) {
+      if (assignee_ids !== undefined) {
         await query(`DELETE FROM task_assignees WHERE task_id = ?`, [id]);
-        for (const userId of assignee_ids) {
-          await query(
-            `INSERT INTO task_assignees (task_id, user_id, assigned_by) VALUES (?, ?, ?)`,
-            [id, userId, user.userId]
-          );
+        if (assignee_ids.length) {
+          const values = assignee_ids.map((aid: number) => `(${id}, ${aid})`).join(',');
+          await query(`INSERT INTO task_assignees (task_id, user_id) VALUES ${values}`);
         }
       }
 
-      return NextResponse.json({ success: true, message: 'Task updated successfully' });
+      await query(`INSERT INTO project_activity_log (user_id, project_id, action, entity_type, entity_id, description) VALUES (?, ?, 'updated', 'task', ?, 'Updated task')`,
+        [user.userId, task.project_id, id]);
+
+      return NextResponse.json({ success: true, message: 'Task updated' });
     } catch (error) {
-      console.error('Update task error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to update task', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
-      );
+      console.error('Tasks PUT error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to update task' }, { status: 500 });
     }
   },
   { requiredPermissions: ['tasks.edit'] }
 );
 
-// PATCH - Bulk update tasks (for Kanban drag-drop)
-export const PATCH = withAuth(
-  async (request: NextRequest): Promise<NextResponse> => {
-    try {
-      const body = await request.json();
-      const { tasks } = body;
-
-      if (!tasks || !Array.isArray(tasks)) {
-        return NextResponse.json({ success: false, error: 'Tasks array is required' }, { status: 400 });
-      }
-
-      for (const task of tasks) {
-        if (task.id && task.status) {
-          let completedDate = null;
-          if (task.status === 'done') {
-            completedDate = new Date().toISOString().split('T')[0];
-          }
-
-          await query(
-            `UPDATE tasks SET status = ?, order_index = ?, completed_date = COALESCE(?, completed_date), updated_at = NOW() WHERE id = ?`,
-            [task.status, task.order_index || 0, completedDate, task.id]
-          );
-        }
-      }
-
-      return NextResponse.json({ success: true, message: 'Tasks updated successfully' });
-    } catch (error) {
-      console.error('Bulk update tasks error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to update tasks', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
-      );
-    }
-  },
-  { requiredPermissions: ['tasks.edit'] }
-);
-
-// DELETE - Soft delete a task (requires tasks.delete permission)
+// DELETE
 export const DELETE = withAuth(
   async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
+      const ctx = await getAccessContext(user.userId);
       const { searchParams } = new URL(request.url);
       const id = searchParams.get('id');
+      if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
 
-      if (!id) {
-        return NextResponse.json({ success: false, error: 'Task ID is required' }, { status: 400 });
-      }
-
-      // Get task info for logging
-      const taskInfo = await query<{ project_id: number }[]>(
-        `SELECT project_id FROM tasks WHERE id = ?`,
-        [id]
-      );
+      const [task] = await query<any[]>(`SELECT project_id FROM tasks WHERE id = ? AND deleted_at IS NULL`, [id]);
+      if (!task) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+      if (!canAccessProject(ctx, task.project_id))
+        return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
       await query(`UPDATE tasks SET deleted_at = NOW() WHERE id = ?`, [id]);
-
-      // Log activity
-      if (taskInfo && taskInfo.length > 0) {
-        await query(
-          `INSERT INTO activity_log (user_id, project_id, task_id, action, entity_type, entity_id, description)
-           VALUES (?, ?, ?, 'deleted', 'task', ?, ?)`,
-          [user.userId, taskInfo[0].project_id, id, id, `Deleted task`]
-        );
-      }
-
-      return NextResponse.json({ success: true, message: 'Task deleted successfully' });
+      return NextResponse.json({ success: true, message: 'Task deleted' });
     } catch (error) {
-      console.error('Delete task error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete task', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
-      );
+      console.error('Tasks DELETE error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to delete task' }, { status: 500 });
     }
   },
   { requiredPermissions: ['tasks.delete'] }

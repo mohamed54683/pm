@@ -159,13 +159,13 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Documents</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Documents</h1>
+            <p className="page-subtitle">
               Project documentation and files
             </p>
           </div>
@@ -180,7 +180,7 @@ export default function DocumentsPage() {
             </button>
             <button 
               onClick={() => setShowUploadModal(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              className="btn-primary">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
@@ -300,17 +300,17 @@ export default function DocumentsPage() {
             ))}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+          <div className="card">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800/50">
+              <thead className="bg-gray-50/80 dark:bg-gray-800/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Size</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Version</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Uploaded By</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Date</th>
+                  <th className="data-table-th">Name</th>
+                  <th className="data-table-th">Type</th>
+                  <th className="data-table-th">Size</th>
+                  <th className="data-table-th">Status</th>
+                  <th className="data-table-th">Version</th>
+                  <th className="data-table-th">Uploaded By</th>
+                  <th className="data-table-th">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -376,13 +376,13 @@ export default function DocumentsPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Folder</h2>
           <form onSubmit={handleCreateFolder}>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Folder Name *</label>
+              <label className="form-label">Folder Name *</label>
               <input
                 type="text"
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
                 placeholder="Enter folder name"
               />
             </div>

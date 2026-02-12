@@ -1,188 +1,188 @@
+/**
+ * Individual Task API - Full CRUD with status transitions and audit
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { withAuth } from '@/lib/middleware/auth';
+import { sanitizeString, stripDangerousTags } from '@/lib/sanitize';
+import { DecodedToken } from '@/lib/auth';
 
-interface QueryRow {
-  [key: string]: string | number | null | undefined;
-}
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  backlog: ['to_do', 'archived'],
+  to_do: ['in_progress', 'blocked', 'backlog', 'archived'],
+  in_progress: ['in_review', 'blocked', 'to_do', 'completed'],
+  in_review: ['in_progress', 'completed', 'blocked'],
+  blocked: ['to_do', 'in_progress', 'in_review'],
+  completed: ['archived'],
+  archived: []
+};
 
-// GET - Single task with all details
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
+// PUT - Update a single task
+export const PUT = withAuth(
+  async (request: NextRequest, { user, params }: { user: DecodedToken; params: Promise<{ id: string }> }): Promise<NextResponse> => {
+    try {
+      const { id } = await params;
+      const body = await request.json();
 
-    const tasks = await query<QueryRow[]>(`
-      SELECT 
-        t.*,
-        p.code as project_code, p.name as project_name,
-        s.name as sprint_name, s.status as sprint_status,
-        CONCAT(a.first_name, ' ', a.last_name) as assignee_name, a.avatar_url as assignee_avatar, a.email as assignee_email,
-        CONCAT(r.first_name, ' ', r.last_name) as reporter_name, r.avatar_url as reporter_avatar,
-        parent.task_key as parent_key, parent.title as parent_title
-      FROM tasks t
-      LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN sprints s ON t.sprint_id = s.id
-      LEFT JOIN users a ON t.assignee_id = a.id
-      LEFT JOIN users r ON t.reporter_id = r.id
-      LEFT JOIN tasks parent ON t.parent_id = parent.id
-      WHERE t.id = ? AND t.deleted_at IS NULL
-    `, [id]);
-
-    if (!tasks[0]) {
-      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
-    }
-
-    const task = tasks[0] as Record<string, unknown>;
-
-    // Get subtasks
-    const subtasks = await query<QueryRow[]>(`
-      SELECT id, uuid, task_key, title, status, priority, assignee_id, story_points, due_date,
-        CONCAT(u.first_name, ' ', u.last_name) as assignee_name
-      FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id
-      WHERE t.parent_id = ? AND t.deleted_at IS NULL
-      ORDER BY t.position ASC
-    `, [id]);
-    task.subtasks = subtasks;
-
-    // Get labels
-    const labels = await query<QueryRow[]>(`
-      SELECT l.id, l.name, l.color FROM labels l
-      INNER JOIN task_labels tl ON l.id = tl.label_id WHERE tl.task_id = ?
-    `, [id]);
-    task.labels = labels;
-
-    // Get dependencies
-    const dependencies = await query<QueryRow[]>(`
-      SELECT td.*, t.task_key, t.title, t.status
-      FROM task_dependencies td
-      INNER JOIN tasks t ON td.depends_on_id = t.id
-      WHERE td.task_id = ?
-    `, [id]);
-    task.dependencies = dependencies;
-
-    // Get checklists
-    const checklists = await query<QueryRow[]>(`
-      SELECT tc.*, 
-        (SELECT COUNT(*) FROM checklist_items ci WHERE ci.checklist_id = tc.id) as total_items,
-        (SELECT COUNT(*) FROM checklist_items ci WHERE ci.checklist_id = tc.id AND ci.is_completed = 1) as completed_items
-      FROM task_checklists tc WHERE tc.task_id = ?
-    `, [id]);
-
-    for (const checklist of checklists) {
-      const items = await query<QueryRow[]>(`
-        SELECT * FROM checklist_items WHERE checklist_id = ? ORDER BY position ASC
-      `, [checklist.id]);
-      (checklist as Record<string, unknown>).items = items;
-    }
-    task.checklists = checklists;
-
-    // Get comments
-    const comments = await query<QueryRow[]>(`
-      SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as user_name, u.avatar_url
-      FROM comments c LEFT JOIN users u ON c.user_id = u.id
-      WHERE c.task_id = ? AND c.deleted_at IS NULL
-      ORDER BY c.created_at DESC
-    `, [id]);
-    task.comments = comments;
-
-    // Get watchers
-    const watchers = await query<QueryRow[]>(`
-      SELECT u.id, u.email, CONCAT(u.first_name, ' ', u.last_name) as name, u.avatar_url
-      FROM task_watchers tw INNER JOIN users u ON tw.user_id = u.id WHERE tw.task_id = ?
-    `, [id]);
-    task.watchers = watchers;
-
-    // Get history (last 20 entries)
-    const history = await query<QueryRow[]>(`
-      SELECT th.*, CONCAT(u.first_name, ' ', u.last_name) as user_name
-      FROM task_history th LEFT JOIN users u ON th.user_id = u.id
-      WHERE th.task_id = ? ORDER BY th.created_at DESC LIMIT 20
-    `, [id]);
-    task.history = history;
-
-    // Get time entries
-    const timeEntries = await query<QueryRow[]>(`
-      SELECT te.*, CONCAT(u.first_name, ' ', u.last_name) as user_name
-      FROM time_entries te LEFT JOIN users u ON te.user_id = u.id
-      WHERE te.task_id = ? ORDER BY te.entry_date DESC
-    `, [id]);
-    task.time_entries = timeEntries;
-
-    return NextResponse.json({ success: true, data: task });
-  } catch (error: unknown) {
-    console.error('Get task error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to load task';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
-}
-
-// PUT - Update task
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
-
-    const allowedFields = [
-      'title', 'description', 'task_type', 'status', 'priority', 'story_points',
-      'estimated_hours', 'actual_hours', 'remaining_hours', 'due_date', 'start_date',
-      'completed_date', 'progress_percentage', 'sprint_id', 'parent_id', 'assignee_id',
-      'position', 'acceptance_criteria'
-    ];
-
-    const setClause: string[] = [];
-    const params_arr: (string | number | null)[] = [];
-
-    for (const [key, value] of Object.entries(body)) {
-      if (allowedFields.includes(key)) {
-        setClause.push(`${key} = ?`);
-        params_arr.push(value as string | number | null);
+      // Get current task
+      const tasks = await query<Record<string, unknown>[]>(
+        `SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL`, [id]
+      );
+      if (!tasks.length) {
+        return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
       }
+      const currentTask = tasks[0];
+
+      // Check if completed - read-only
+      if (currentTask.status === 'completed' && body.status !== 'archived') {
+        return NextResponse.json({ success: false, error: 'Completed tasks are read-only' }, { status: 400 });
+      }
+
+      // Validate status transition
+      if (body.status && body.status !== currentTask.status) {
+        const allowedTransitions = STATUS_TRANSITIONS[currentTask.status as string] || [];
+        if (!allowedTransitions.includes(body.status)) {
+          return NextResponse.json({ 
+            success: false, 
+            error: `Cannot transition from ${currentTask.status} to ${body.status}` 
+          }, { status: 400 });
+        }
+
+        // Blocked requires reason
+        if (body.status === 'blocked' && !body.blocked_reason) {
+          return NextResponse.json({ success: false, error: 'Blocked status requires a reason' }, { status: 400 });
+        }
+      }
+
+      const updateFields: string[] = [];
+      const updateParams: (string | number | null)[] = [];
+      const changes: { field: string; old: unknown; new: unknown }[] = [];
+
+      const allowedFields = [
+        'title', 'description', 'acceptance_criteria', 'type',
+        'status', 'priority', 'severity',
+        'sprint_id', 'phase_id',
+        'story_points', 'estimated_hours', 'remaining_hours',
+        'planned_start_date', 'planned_end_date', 'due_date',
+        'progress_percentage', 'is_blocked', 'blocked_reason',
+        'board_column', 'board_position'
+      ];
+
+      for (const field of allowedFields) {
+        if (body[field] !== undefined && body[field] !== currentTask[field]) {
+          changes.push({ field, old: currentTask[field], new: body[field] });
+          
+          if (['title', 'description', 'acceptance_criteria'].includes(field)) {
+            updateFields.push(`${field} = ?`);
+            updateParams.push(field === 'title' ? sanitizeString(body[field]) : stripDangerousTags(body[field] || ''));
+          } else {
+            updateFields.push(`${field} = ?`);
+            updateParams.push(body[field]);
+          }
+        }
+      }
+
+      // Handle status-specific fields
+      if (body.status === 'blocked') {
+        updateFields.push('is_blocked = 1', 'blocked_by = ?', 'blocked_date = NOW()');
+        updateParams.push(user.userId);
+        if (body.blocked_reason) {
+          updateFields.push('blocked_reason = ?');
+          updateParams.push(body.blocked_reason);
+        }
+      } else if (body.status && currentTask.status === 'blocked') {
+        updateFields.push('is_blocked = 0', 'blocked_by = NULL', 'blocked_date = NULL', 'blocked_reason = NULL');
+      }
+
+      if (body.status === 'completed') {
+        updateFields.push('completed_at = NOW()', 'progress_percentage = 100');
+      }
+
+      if (body.status === 'in_progress' && !currentTask.actual_start_date) {
+        updateFields.push('actual_start_date = CURDATE()');
+      }
+
+      if (updateFields.length > 0) {
+        updateFields.push('updated_at = NOW()');
+        updateParams.push(id);
+
+        await query(
+          `UPDATE tasks SET ${updateFields.join(', ')} WHERE id = ?`,
+          updateParams
+        );
+
+        // Log changes
+        for (const change of changes) {
+          await query(
+            `INSERT INTO task_history (task_id, user_id, action, field_name, old_value, new_value, created_at)
+             VALUES (?, ?, 'updated', ?, ?, ?, NOW())`,
+            [id, user.userId, change.field, String(change.old || ''), String(change.new || '')]
+          );
+        }
+      }
+
+      // Handle assignees
+      if (body.assignee_ids !== undefined) {
+        const currentAssignees = await query<Record<string, unknown>[]>(
+          `SELECT user_id FROM task_assignees WHERE task_id = ?`, [id]
+        );
+        const currentIds = currentAssignees.map(a => a.user_id);
+        const newIds = body.assignee_ids || [];
+
+        // Remove old
+        for (const uid of currentIds) {
+          if (!newIds.includes(uid)) {
+            await query(`DELETE FROM task_assignees WHERE task_id = ? AND user_id = ?`, [id, uid]);
+          }
+        }
+        // Add new
+        for (const uid of newIds) {
+          if (!currentIds.includes(uid)) {
+            await query(`INSERT INTO task_assignees (task_id, user_id) VALUES (?, ?)`, [id, uid]);
+          }
+        }
+
+        if (JSON.stringify(currentIds.sort()) !== JSON.stringify(newIds.sort())) {
+          await query(
+            `INSERT INTO task_history (task_id, user_id, action, field_name, old_value, new_value, created_at)
+             VALUES (?, ?, 'updated', 'assignees', ?, ?, NOW())`,
+            [id, user.userId, currentIds.join(','), newIds.join(',')]
+          );
+        }
+      }
+
+      return NextResponse.json({ success: true, message: 'Task updated' });
+    } catch (error) {
+      console.error('Task PUT error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to update task' }, { status: 500 });
     }
-
-    if (setClause.length === 0) {
-      return NextResponse.json({ success: false, error: 'No valid fields' }, { status: 400 });
-    }
-
-    // Handle status change to done
-    if (body.status === 'done' && !body.completed_date) {
-      setClause.push('completed_date = CURRENT_DATE');
-      setClause.push('progress_percentage = 100');
-    }
-
-    await query(`
-      UPDATE tasks SET ${setClause.join(', ')}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND deleted_at IS NULL
-    `, [...params_arr, id]);
-
-    return NextResponse.json({ success: true, message: 'Task updated' });
-  } catch (error: unknown) {
-    console.error('Update task error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to update task';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
-}
+  },
+  { requiredPermissions: ['tasks.edit'] }
+);
 
 // DELETE - Soft delete task
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
+export const DELETE = withAuth(
+  async (request: NextRequest, { user, params }: { user: DecodedToken; params: Promise<{ id: string }> }): Promise<NextResponse> => {
+    try {
+      const { id } = await params;
 
-    await query(`UPDATE tasks SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`, [id]);
-    // Also soft delete subtasks
-    await query(`UPDATE tasks SET deleted_at = CURRENT_TIMESTAMP WHERE parent_id = ?`, [id]);
+      await query(
+        `UPDATE tasks SET deleted_at = NOW(), status = 'archived' WHERE id = ? AND deleted_at IS NULL`,
+        [id]
+      );
 
-    return NextResponse.json({ success: true, message: 'Task deleted' });
-  } catch (error: unknown) {
-    console.error('Delete task error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to delete task';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
-}
+      await query(
+        `INSERT INTO task_history (task_id, user_id, action, new_value, created_at)
+         VALUES (?, ?, 'deleted', 'Task archived', NOW())`,
+        [id, user.userId]
+      );
+
+      return NextResponse.json({ success: true, message: 'Task deleted' });
+    } catch (error) {
+      console.error('Task DELETE error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to delete task' }, { status: 500 });
+    }
+  },
+  { requiredPermissions: ['tasks.delete'] }
+);

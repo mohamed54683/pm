@@ -10,17 +10,17 @@ interface TaskCardProps {
 }
 
 const statusColors: Record<TaskStatus, { bg: string; border: string; text: string }> = {
-  not_started: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600' },
-  in_progress: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600' },
-  in_review: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600' },
-  completed: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600' },
-  cancelled: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600' },
-  blocked: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600' }
+  not_started: { bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-600', text: 'text-gray-600 dark:text-gray-300' },
+  in_progress: { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', text: 'text-blue-600 dark:text-blue-400' },
+  in_review: { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800', text: 'text-purple-600 dark:text-purple-400' },
+  completed: { bg: 'bg-green-50 dark:bg-green-900/20', border: 'border-green-200 dark:border-green-800', text: 'text-green-600 dark:text-green-400' },
+  cancelled: { bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-800', text: 'text-red-600 dark:text-red-400' },
+  blocked: { bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800', text: 'text-orange-600 dark:text-orange-400' }
 };
 
 const priorityConfig: Record<TaskPriority, { color: string; icon: React.ReactNode }> = {
   low: {
-    color: 'text-gray-400',
+    color: 'text-gray-400 dark:text-gray-500',
     icon: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 14l-5-5h10l-5 5z" /></svg>
   },
   medium: {

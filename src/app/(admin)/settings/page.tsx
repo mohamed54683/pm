@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Link from "next/link";
 
 interface SettingSection {
@@ -32,6 +31,13 @@ const settingSections: SettingSection[] = [
     icon: '🔌',
     path: '/settings/integrations',
     items: ['Slack', 'Jira', 'GitHub', 'Email']
+  },
+  {
+    title: 'Departments',
+    description: 'Manage organizational departments and hierarchy',
+    icon: '🏢',
+    path: '/settings/departments',
+    items: ['Department Structure', 'Managers', 'Analytic Accounts']
   },
   {
     title: 'Notifications',
@@ -66,23 +72,17 @@ export default function SettingsPage() {
   );
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Settings" />
-      
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
-        {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            System Settings
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Configure your project management system
-          </p>
-        </div>
-
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative max-w-md">
+    <div className="page-container">
+      {/* Header */}
+      <div className="page-header">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="page-title">Settings</h1>
+            <p className="page-subtitle">
+              Configure your project management system
+            </p>
+          </div>
+          <div className="relative max-w-xs">
             <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -91,18 +91,21 @@ export default function SettingsPage() {
               placeholder="Search settings..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm dark:border-gray-600 dark:bg-gray-800"
+              className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
+      </div>
 
+      {/* Content */}
+      <div className="p-6">
         {/* Settings Grid */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredSections.map((section) => (
             <Link 
               key={section.title}
               href={section.path}
-              className="group rounded-xl border border-gray-200 p-5 transition-all hover:border-brand-300 hover:shadow-md dark:border-gray-700 dark:hover:border-brand-600"
+              className="group rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-blue-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600"
             >
               <div className="flex items-start justify-between">
                 <span className="text-3xl">{section.icon}</span>
@@ -129,7 +132,7 @@ export default function SettingsPage() {
         </div>
 
         {filteredSections.length === 0 && (
-          <div className="flex h-48 flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+          <div className="flex h-48 flex-col items-center justify-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
             <svg className="mb-4 h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -138,8 +141,8 @@ export default function SettingsPage() {
         )}
 
         {/* Quick Actions */}
-        <div className="mt-8 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-          <h4 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Quick Actions</h4>
+        <div className="mt-6 rounded-xl bg-white border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+          <h4 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Quick Actions</h4>
           <div className="flex flex-wrap gap-2">
             <button 
               onClick={() => {
@@ -152,7 +155,7 @@ export default function SettingsPage() {
                 a.click();
                 URL.revokeObjectURL(url);
               }}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               Export Settings
             </button>
@@ -173,7 +176,7 @@ export default function SettingsPage() {
                 };
                 input.click();
               }}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               Import Settings
             </button>
@@ -183,7 +186,7 @@ export default function SettingsPage() {
                   alert('Settings have been reset to defaults.');
                 }
               }}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               Reset to Defaults
             </button>
@@ -191,7 +194,7 @@ export default function SettingsPage() {
               onClick={() => {
                 alert('Changelog:\n\nv1.0.0 - Initial Release\n- Project Management\n- Task Tracking\n- Time Logging\n- Budget Management');
               }}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               View Changelog
             </button>

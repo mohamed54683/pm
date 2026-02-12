@@ -150,7 +150,7 @@ export default function ProjectDashboard() {
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Task Overview</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.task_stats.total}</div>
+              <div className="page-title">{stats.task_stats.total}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Total Tasks</div>
             </div>
             <div>
@@ -201,7 +201,7 @@ export default function ProjectDashboard() {
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">My Tasks</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.user_tasks?.assigned_to_me ?? 0}</div>
+              <div className="page-title">{stats.user_tasks?.assigned_to_me ?? 0}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Assigned to Me</div>
             </div>
             <div>

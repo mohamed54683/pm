@@ -392,7 +392,7 @@ export default function SprintBoard({ projectId, sprintId, onSprintChange }: Spr
               {/* Stats */}
               <div className="grid grid-cols-4 gap-4 mb-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{activeSprint.total_tasks || 0}</p>
+                  <p className="page-title">{activeSprint.total_tasks || 0}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Total Tasks</p>
                 </div>
                 <div className="text-center">

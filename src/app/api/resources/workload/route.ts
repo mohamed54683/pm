@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         (SELECT COUNT(*) FROM tasks t WHERE t.assignee_id = u.id AND t.status = 'backlog' AND t.deleted_at IS NULL) as backlog_tasks,
         (SELECT COUNT(*) FROM tasks t WHERE t.assignee_id = u.id AND t.due_date < CURRENT_DATE AND t.status NOT IN ('done', 'cancelled') AND t.deleted_at IS NULL) as overdue_tasks
       FROM users u
-      WHERE u.deleted_at IS NULL AND u.is_active = 1 ${userFilter}
+      WHERE u.deleted_at IS NULL AND u.status = 'active' ${userFilter}
       ORDER BY u.first_name, u.last_name
     `, [endDate, startDate, endDate, startDate, startDate, endDate, ...params.slice(2)]);
 

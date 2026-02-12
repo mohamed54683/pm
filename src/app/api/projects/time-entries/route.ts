@@ -66,7 +66,7 @@ async function handleGet(request: NextRequest, user: DecodedToken) {
     } else {
       // By default, show current user's entries
       sql += ' AND te.user_id = ?';
-      params.push(user.id);
+      params.push(user.userId);
     }
 
     if (startDate) {
@@ -142,14 +142,14 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
              end_time = NOW(),
              duration_minutes = TIMESTAMPDIFF(MINUTE, start_time, NOW())
          WHERE user_id = ? AND is_running = TRUE`,
-        [user.id]
+        [user.userId]
       );
 
       // Start new timer
       await query(
         `INSERT INTO time_entries (id, task_id, project_id, user_id, start_time, is_billable, billing_rate, is_running, entry_type, description)
          VALUES (?, ?, ?, ?, NOW(), ?, ?, TRUE, 'timer', ?)`,
-        [id, task_id || null, project_id, user.id, is_billable, billing_rate || null, description || null]
+        [id, task_id || null, project_id, user.userId, is_billable, billing_rate || null, description || null]
       );
     } else {
       // Manual entry
@@ -159,7 +159,7 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
       await query(
         `INSERT INTO time_entries (id, task_id, project_id, user_id, start_time, end_time, duration_minutes, description, is_billable, billing_rate, is_running, entry_type)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, 'manual')`,
-        [id, task_id || null, project_id, user.id, start_time || new Date().toISOString(), end_time || null, actualDuration, description || null, is_billable, billing_rate || null]
+        [id, task_id || null, project_id, user.userId, start_time || new Date().toISOString(), end_time || null, actualDuration, description || null, is_billable, billing_rate || null]
       );
     }
 
@@ -167,7 +167,7 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
     await query(
       `INSERT INTO project_activity_log (id, project_id, entity_id, entity_type, action, details, user_id)
        VALUES (?, ?, ?, 'time_entry', 'created', ?, ?)`,
-      [generateId('act'), project_id, id, JSON.stringify({ description, duration_minutes }), user.id]
+      [generateId('act'), project_id, id, JSON.stringify({ description, duration_minutes }), user.userId]
     );
 
     // Fetch and return the created entry
@@ -206,7 +206,7 @@ async function handlePut(request: NextRequest, user: DecodedToken) {
              duration_minutes = TIMESTAMPDIFF(MINUTE, start_time, NOW()),
              updated_at = NOW()
          WHERE id = ? AND user_id = ?`,
-        [id, user.id]
+        [id, user.userId]
       );
     } else {
       // Regular update
@@ -266,7 +266,7 @@ async function handleDelete(request: NextRequest, user: DecodedToken) {
     }
 
     const entry = (entries as any[])[0];
-    if (entry.user_id !== user.id && user.role !== 'admin') {
+    if (entry.user_id !== user.userId && user.role !== 'admin') {
       return NextResponse.json({ success: false, error: 'Not authorized to delete this entry' }, { status: 403 });
     }
 

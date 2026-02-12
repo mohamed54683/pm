@@ -199,7 +199,7 @@ export default function RiskDashboard({ projectId, onRiskClick: _onRiskClick }: 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Risks</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+          <p className="page-title">{stats.total}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">Critical</p>
@@ -215,7 +215,7 @@ export default function RiskDashboard({ projectId, onRiskClick: _onRiskClick }: 
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">Avg Score</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.avgScore}</p>
+          <p className="page-title">{stats.avgScore}</p>
         </div>
       </div>
 
@@ -483,11 +483,11 @@ export default function RiskDashboard({ projectId, onRiskClick: _onRiskClick }: 
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
                 <p className="text-sm text-gray-500 dark:text-gray-400">Probability</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedRisk.probability}/5</p>
+                <p className="page-title">{selectedRisk.probability}/5</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
                 <p className="text-sm text-gray-500 dark:text-gray-400">Impact</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedRisk.impact}/5</p>
+                <p className="page-title">{selectedRisk.impact}/5</p>
               </div>
             </div>
 

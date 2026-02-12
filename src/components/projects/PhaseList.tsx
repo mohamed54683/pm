@@ -126,7 +126,7 @@ export default function PhaseList({ projectId, onRefresh }: PhaseListProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 className="card-title">
           Phases ({phases.length})
         </h3>
         <Button onClick={() => setShowCreateModal(true)}>

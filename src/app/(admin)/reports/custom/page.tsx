@@ -31,6 +31,7 @@ const typeIcons: Record<string, string> = {
 
 export default function CustomReportsPage() {
   const [reports] = useState<ReportTemplate[]>(reportTemplates);
+  const [showBuilder, setShowBuilder] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
 
@@ -56,7 +57,7 @@ export default function CustomReportsPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Report Templates
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="page-subtitle">
               Create and manage custom report templates
             </p>
           </div>

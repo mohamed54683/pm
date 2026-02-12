@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           COUNT(*) as total_resources,
           (SELECT COALESCE(SUM(hours), 0) FROM time_entries WHERE entry_date >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)) as hours_this_week,
           (SELECT COALESCE(SUM(hours), 0) FROM time_entries WHERE entry_date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)) as hours_this_month
-        FROM users WHERE deleted_at IS NULL AND is_active = 1
+        FROM users WHERE deleted_at IS NULL AND status = 'active'
       `);
 
       const riskSummary = await query<QueryRow[]>(`
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
           (SELECT COALESCE(SUM(estimated_hours), 0) FROM tasks WHERE assignee_id = u.id AND status NOT IN ('done', 'cancelled') AND deleted_at IS NULL) as allocated_hours,
           (SELECT COUNT(*) FROM tasks WHERE assignee_id = u.id AND status = 'in_progress' AND deleted_at IS NULL) as active_tasks
         FROM users u
-        WHERE u.deleted_at IS NULL AND u.is_active = 1
+        WHERE u.deleted_at IS NULL AND u.status = 'active'
         ORDER BY u.first_name
       `);
 

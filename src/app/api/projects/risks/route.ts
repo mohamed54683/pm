@@ -139,7 +139,7 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
       [
         id, project_id, title, description || null, category || 'other',
         probability || 3, impact || 3, calculatedSeverity,
-        user.id, owner_id || null, mitigation_strategy || null, contingency_plan || null,
+        user.userId, owner_id || null, mitigation_strategy || null, contingency_plan || null,
         trigger_conditions || null, response_plan || null, task_id || null
       ]
     );
@@ -148,14 +148,14 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
     await query(
       `INSERT INTO risk_history (id, risk_id, field_changed, new_value, changed_by)
        VALUES (?, ?, 'status', 'identified', ?)`,
-      [generateId('rh'), id, user.id]
+      [generateId('rh'), id, user.userId]
     );
 
     // Log activity
     await query(
       `INSERT INTO project_activity_log (id, project_id, entity_id, entity_type, action, details, user_id)
        VALUES (?, ?, ?, 'risk', 'created', ?, ?)`,
-      [generateId('act'), project_id, id, JSON.stringify({ title, severity: calculatedSeverity }), user.id]
+      [generateId('act'), project_id, id, JSON.stringify({ title, severity: calculatedSeverity }), user.userId]
     );
 
     // Update project risk score
@@ -260,7 +260,7 @@ async function handlePut(request: NextRequest, user: DecodedToken) {
       await query(
         `INSERT INTO risk_history (id, risk_id, field_changed, old_value, new_value, changed_by)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [generateId('rh'), id, change.field, String(change.old_value || ''), String(change.new_value || ''), user.id]
+        [generateId('rh'), id, change.field, String(change.old_value || ''), String(change.new_value || ''), user.userId]
       );
     }
 

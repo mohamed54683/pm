@@ -98,11 +98,11 @@ export default function KanbanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Kanban Board</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="page-header">
+        <h1 className="page-title">Kanban Board</h1>
+        <p className="page-subtitle">
           Drag and drop tasks to update status
         </p>
       </div>

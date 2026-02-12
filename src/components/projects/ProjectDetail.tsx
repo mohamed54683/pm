@@ -19,11 +19,11 @@ interface ProjectDetailProps {
 type ViewTab = 'overview' | 'tasks' | 'kanban' | 'timeline' | 'phases';
 
 const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  active: 'bg-green-100 text-green-700',
-  on_hold: 'bg-yellow-100 text-yellow-700',
-  completed: 'bg-blue-100 text-blue-700',
-  cancelled: 'bg-red-100 text-red-700'
+  draft: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  on_hold: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
 };
 
 export default function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
@@ -114,7 +114,7 @@ export default function ProjectDetail({ projectId, onBack }: ProjectDetailProps)
               {project.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{project.name}</h1>
+              <h1 className="page-title">{project.name}</h1>
               <div className="flex items-center gap-3 mt-1">
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[project.status]}`}>
                   {project.status.replace('_', ' ')}
@@ -150,32 +150,32 @@ export default function ProjectDetail({ projectId, onBack }: ProjectDetailProps)
                   style={{ width: `${project.progress_percentage}%`, backgroundColor: project.color }}
                 />
               </div>
-              <span className="text-lg font-semibold text-gray-900 dark:text-white">
+              <span className="card-title">
                 {Math.round(project.progress_percentage)}%
               </span>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Tasks</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+            <div className="card-title">
               {completedTasks} / {totalTasks}
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Phases</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+            <div className="card-title">
               {project.phase_count || 0}
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Start Date</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+            <div className="card-title">
               {project.start_date ? new Date(project.start_date).toLocaleDateString() : '-'}
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">End Date</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+            <div className="card-title">
               {project.end_date ? new Date(project.end_date).toLocaleDateString() : '-'}
             </div>
           </div>

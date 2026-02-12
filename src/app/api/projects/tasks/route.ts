@@ -119,8 +119,8 @@ export const GET = withAuth(
            FROM task_assignees ta 
            JOIN users u ON ta.user_id = u.id 
            WHERE ta.task_id = t.id) as assignee_names,
-          (SELECT COUNT(*) FROM task_checklists WHERE task_id = t.id) as checklist_count,
-          (SELECT COUNT(*) FROM task_checklists WHERE task_id = t.id AND is_completed = TRUE) as completed_checklist_count
+          (SELECT COUNT(*) FROM task_checklists tc2 JOIN checklist_items ci ON tc2.id = ci.checklist_id WHERE tc2.task_id = t.id) as checklist_count,
+          (SELECT COUNT(*) FROM task_checklists tc2 JOIN checklist_items ci ON tc2.id = ci.checklist_id WHERE tc2.task_id = t.id AND ci.is_checked = 1) as completed_checklist_count
         FROM tasks t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN project_phases ph ON t.phase_id = ph.id

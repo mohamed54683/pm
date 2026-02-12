@@ -54,7 +54,7 @@ export default function BudgetsPage() {
     project_id: '',
     total_budget: '',
     fiscal_year: new Date().getFullYear().toString(),
-    currency: 'USD'
+    currency: 'SAR'
   });
   const [creating, setCreating] = useState(false);
 
@@ -99,7 +99,7 @@ export default function BudgetsPage() {
           project_id: '',
           total_budget: '',
           fiscal_year: new Date().getFullYear().toString(),
-          currency: 'USD'
+          currency: 'SAR'
         });
         loadBudgets();
       } else {
@@ -137,7 +137,7 @@ export default function BudgetsPage() {
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
+  const formatCurrency = (amount: number, currency: string = 'SAR') => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,
@@ -165,13 +165,13 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Budget Management</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Budget Management</h1>
+            <p className="page-subtitle">
               Track project budgets and financial performance
             </p>
           </div>
@@ -187,7 +187,7 @@ export default function BudgetsPage() {
             </select>
             <button 
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              className="btn-primary">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -200,25 +200,25 @@ export default function BudgetsPage() {
       <div className="p-6">
         {/* Summary Cards */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Total Budget</p>
+          <div className="card p-6">
+            <p className="page-subtitle">Total Budget</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalBudget)}</p>
             <p className="mt-1 text-sm text-gray-500">FY {fiscalYear}</p>
           </div>
-          <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Actual Cost</p>
+          <div className="card p-6">
+            <p className="page-subtitle">Actual Cost</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalActual)}</p>
             <p className="mt-1 text-sm text-gray-500">{Math.round((totalActual / totalBudget) * 100)}% of budget</p>
           </div>
-          <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Remaining</p>
+          <div className="card p-6">
+            <p className="page-subtitle">Remaining</p>
             <p className={`text-3xl font-bold ${totalRemaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               {formatCurrency(totalRemaining)}
             </p>
             <p className="mt-1 text-sm text-gray-500">{totalRemaining >= 0 ? 'Under budget' : 'Over budget'}</p>
           </div>
-          <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Projects</p>
+          <div className="card p-6">
+            <p className="page-subtitle">Projects</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white">{budgets.length}</p>
             <p className="mt-1 text-sm text-gray-500">With active budgets</p>
           </div>
@@ -280,10 +280,10 @@ export default function BudgetsPage() {
             {selectedBudget && (
               <div className="lg:col-span-2 space-y-6">
                 {/* Budget Overview */}
-                <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                <div className="card p-6">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedBudget.project_name}</h2>
+                      <h2 className="card-title text-xl">{selectedBudget.project_name}</h2>
                       <p className="text-gray-500">{selectedBudget.project_code}</p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-sm font-medium ${statusColors[selectedBudget.status]}`}>
@@ -294,13 +294,13 @@ export default function BudgetsPage() {
                   <div className="mt-6 grid grid-cols-4 gap-4">
                     <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
                       <p className="text-sm text-gray-500">Total Budget</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      <p className="card-title text-xl">
                         {formatCurrency(selectedBudget.total_budget, selectedBudget.currency)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
                       <p className="text-sm text-gray-500">Actual Cost</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      <p className="card-title text-xl">
                         {formatCurrency(selectedBudget.actual_cost, selectedBudget.currency)}
                       </p>
                     </div>
@@ -320,7 +320,7 @@ export default function BudgetsPage() {
                 </div>
 
                 {/* Line Items */}
-                <div className="rounded-xl bg-white shadow-sm dark:bg-gray-800">
+                <div className="card">
                   <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
                     <h3 className="font-semibold text-gray-900 dark:text-white">Budget Line Items</h3>
                   </div>
@@ -328,10 +328,10 @@ export default function BudgetsPage() {
                   {selectedBudget.line_items && selectedBudget.line_items.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-800/50">
+                        <thead className="bg-gray-50/80 dark:bg-gray-800/50">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Category</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Description</th>
+                            <th className="data-table-th">Category</th>
+                            <th className="data-table-th">Description</th>
                             <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Budgeted</th>
                             <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Actual</th>
                             <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Variance</th>
@@ -386,12 +386,12 @@ export default function BudgetsPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Budget</h2>
           <form onSubmit={handleCreateBudget} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project *</label>
+              <label className="form-label">Project *</label>
               <select
                 value={newBudget.project_id}
                 onChange={(e) => setNewBudget({ ...newBudget, project_id: e.target.value })}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
               >
                 <option value="">Select a project</option>
                 {projects.map(p => (
@@ -400,7 +400,7 @@ export default function BudgetsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total Budget *</label>
+              <label className="form-label">Total Budget *</label>
               <input
                 type="number"
                 value={newBudget.total_budget}
@@ -408,17 +408,17 @@ export default function BudgetsPage() {
                 required
                 min="0"
                 step="1000"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
                 placeholder="e.g., 100000"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fiscal Year</label>
+                <label className="form-label">Fiscal Year</label>
                 <select
                   value={newBudget.fiscal_year}
                   onChange={(e) => setNewBudget({ ...newBudget, fiscal_year: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input"
                 >
                   {[2024, 2025, 2026, 2027].map(y => (
                     <option key={y} value={y}>{y}</option>
@@ -426,13 +426,13 @@ export default function BudgetsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
+                <label className="form-label">Currency</label>
                 <select
                   value={newBudget.currency}
                   onChange={(e) => setNewBudget({ ...newBudget, currency: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input"
                 >
-                  <option value="USD">USD</option>
+                  <option value="SAR">SAR (ر.س)</option>
                   <option value="EUR">EUR</option>
                   <option value="GBP">GBP</option>
                   <option value="MYR">MYR</option>

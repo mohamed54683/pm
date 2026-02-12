@@ -96,13 +96,13 @@ export default function WorkloadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Resource Workload</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Resource Workload</h1>
+            <p className="page-subtitle">
               Capacity planning and utilization analysis
             </p>
           </div>
@@ -111,14 +111,14 @@ export default function WorkloadPage() {
               type="date"
               value={dateRange.startDate}
               onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              className="form-select"
             />
             <span className="text-gray-500">to</span>
             <input
               type="date"
               value={dateRange.endDate}
               onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              className="form-select"
             />
           </div>
         </div>
@@ -129,15 +129,15 @@ export default function WorkloadPage() {
         {summary && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
             <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Resources</p>
+              <p className="page-subtitle">Resources</p>
               <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{summary.totalResources}</p>
             </div>
             <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Capacity</p>
+              <p className="page-subtitle">Total Capacity</p>
               <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{summary.totalCapacity}h</p>
             </div>
             <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Allocated</p>
+              <p className="page-subtitle">Allocated</p>
               <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{summary.totalAllocated}h</p>
             </div>
             <div className="rounded-xl bg-blue-50 p-4 shadow-sm dark:bg-blue-900/20">
@@ -156,7 +156,7 @@ export default function WorkloadPage() {
         )}
 
         {/* Workload Chart */}
-        <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+        <div className="card p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Team Workload</h2>
           <div className="space-y-4">
             {resources.map((resource) => (
@@ -223,13 +223,13 @@ export default function WorkloadPage() {
         </div>
 
         {/* Project Allocations */}
-        <div className="rounded-xl bg-white shadow-sm dark:bg-gray-800">
+        <div className="card">
           <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Project Allocations</h2>
+            <h2 className="card-title">Project Allocations</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800/50">
+              <thead className="bg-gray-50/80 dark:bg-gray-800/50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Project</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Team Size</th>

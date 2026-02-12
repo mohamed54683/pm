@@ -1,6 +1,5 @@
 /**
  * Documents API - CRUD operations for PMP database
- * Fixed to match actual database schema
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,7 +18,6 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const search = searchParams.get('search');
 
-    // Build where clause for documents (documents table has deleted_at)
     let whereClause = 'd.deleted_at IS NULL';
     const params: (string | number)[] = [];
 
@@ -39,15 +37,13 @@ export async function GET(request: NextRequest) {
     }
     if (search) {
       whereClause += ' AND d.name LIKE ?';
-      params.push(`%${search}%`);
+      params.push('%' + search + '%');
     }
 
-    // Build folder query params
     const folderParams: (string | number)[] = [];
     if (projectId) folderParams.push(projectId);
     if (folderId) folderParams.push(folderId);
 
-    // Get folders (folders table does NOT have deleted_at)
     const folders = await query<QueryRow[]>(`
       SELECT
         f.id, f.uuid, f.name, f.path, f.parent_id, f.project_id,
@@ -61,23 +57,22 @@ export async function GET(request: NextRequest) {
       ORDER BY f.name
     `, folderParams);
 
-    // Get documents (uses file_type and uploaded_by per schema)
     const documents = await query<QueryRow[]>(`
       SELECT
         d.id, d.uuid, d.name, d.file_type, d.file_path,
-        d.file_size, d.mime_type, d.version, d.status, d.project_id, d.folder_id,
+        d.file_size, d.mime_type, d.current_version as version, d.status, d.project_id, d.folder_id,
         d.created_at, d.updated_at, 'document' as item_type,
-        u.name as uploaded_by_name
+        u.first_name as uploaded_by_first_name,
+        u.last_name as uploaded_by_last_name
       FROM documents d
-      LEFT JOIN users u ON d.uploaded_by = u.id
+      LEFT JOIN users u ON d.created_by = u.id
       WHERE ${whereClause}
       ORDER BY d.name
     `, params);
 
-    // Get breadcrumb path if in folder
-    let breadcrumb: QueryRow[] = [];
+    let breadcrumbs: QueryRow[] = [];
     if (folderId) {
-      breadcrumb = await query<QueryRow[]>(`
+      breadcrumbs = await query<QueryRow[]>(`
         WITH RECURSIVE folder_path AS (
           SELECT id, name, parent_id, 1 as level FROM folders WHERE id = ?
           UNION ALL
@@ -90,11 +85,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: {
-        folders,
-        documents,
-        breadcrumb
-      }
+      data: { folders, documents, breadcrumbs }
     });
   } catch (error: unknown) {
     console.error('Documents API error:', error);
@@ -116,36 +107,35 @@ export async function POST(request: NextRequest) {
       }
 
       const uuid = crypto.randomUUID();
+      const tenants = await query<{ tenant_id: number }[]>('SELECT tenant_id FROM folders LIMIT 1');
+      const tenantId = tenants[0]?.tenant_id || 1;
+      
       const result = await query<{ insertId: number }>(`
-        INSERT INTO folders (uuid, name, path, parent_id, project_id)
-        VALUES (?, ?, ?, ?, ?)
-      `, [uuid, name, path || null, parent_id || null, project_id || null]);
+        INSERT INTO folders (uuid, tenant_id, name, path, parent_id, project_id)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [uuid, tenantId, name, path || null, parent_id || null, project_id || null]);
 
       return NextResponse.json({
         success: true,
         data: { id: result.insertId, uuid, name, type: 'folder' }
       }, { status: 201 });
     } else {
-      const {
-        name, file_type, file_path, file_size, mime_type,
-        project_id, folder_id, task_id, uploaded_by
-      } = body;
+      const { name, file_type, file_path, file_size, mime_type, project_id, folder_id, created_by } = body;
 
       if (!name || !file_path) {
         return NextResponse.json({ success: false, error: 'Name and file path required' }, { status: 400 });
       }
 
       const uuid = crypto.randomUUID();
+      const tenants = await query<{ tenant_id: number }[]>('SELECT tenant_id FROM documents LIMIT 1');
+      const tenantId = tenants[0]?.tenant_id || 1;
+
       const result = await query<{ insertId: number }>(`
         INSERT INTO documents (
-          uuid, name, file_type, file_path, file_size, mime_type,
-          version, status, project_id, folder_id, task_id, uploaded_by
-        ) VALUES (?, ?, ?, ?, ?, ?, 1, 'draft', ?, ?, ?, ?)
-      `, [
-        uuid, name, file_type || 'general',
-        file_path, file_size || 0, mime_type || 'application/octet-stream',
-        project_id || null, folder_id || null, task_id || null, uploaded_by || null
-      ]);
+          uuid, tenant_id, name, file_type, file_path, file_size, mime_type,
+          current_version, status, project_id, folder_id, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'draft', ?, ?, ?)
+      `, [uuid, tenantId, name, file_type || 'general', file_path, file_size || 0, mime_type || 'application/octet-stream', project_id || null, folder_id || null, created_by || null]);
 
       return NextResponse.json({
         success: true,
@@ -159,7 +149,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Soft delete a document (hard delete folder)
+// DELETE - Soft delete document or hard delete folder
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -171,10 +161,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (type === 'folder') {
-      // Check if folder has contents
       const contents = await query<{ cnt: number }[]>(`
         SELECT
-          (SELECT COUNT(*) FROM documents WHERE folder_id = ?) +
+          (SELECT COUNT(*) FROM documents WHERE folder_id = ? AND deleted_at IS NULL) +
           (SELECT COUNT(*) FROM folders WHERE parent_id = ?) as cnt
       `, [id, id]);
 
@@ -187,11 +176,10 @@ export async function DELETE(request: NextRequest) {
 
       await query(`DELETE FROM folders WHERE id = ?`, [id]);
     } else {
-      // Soft delete document
       await query(`UPDATE documents SET deleted_at = NOW() WHERE id = ?`, [id]);
     }
 
-    return NextResponse.json({ success: true, message: `${type} deleted successfully` });
+    return NextResponse.json({ success: true, message: type + ' deleted successfully' });
   } catch (error: unknown) {
     console.error('Delete document error:', error);
     const message = error instanceof Error ? error.message : 'Failed to delete';

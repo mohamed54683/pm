@@ -124,13 +124,13 @@ export default function CalendarPage() {
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Calendar</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Calendar</h1>
+            <p className="page-subtitle">
               View tasks and deadlines
             </p>
           </div>
@@ -173,7 +173,7 @@ export default function CalendarPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h2 className="card-title text-xl">
               {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </h2>
             <button
@@ -214,7 +214,7 @@ export default function CalendarPage() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+          <div className="card">
             {/* Week Day Headers */}
             <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
               {weekDays.map((day) => (

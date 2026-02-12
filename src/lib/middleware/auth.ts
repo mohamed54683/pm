@@ -27,11 +27,13 @@ export interface AuthResult {
   };
 }
 
+// Re-export DecodedToken for convenience
+export { DecodedToken } from '../auth/jwt';
+
 /**
  * Verify authentication from request
  */
 export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
-  // Get access token from cookies
   const accessToken = getAccessTokenFromCookies(request.cookies);
 
   if (accessToken) {
@@ -44,12 +46,10 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
     }
   }
 
-  // Try refresh token if access token is invalid/expired
   const refreshToken = getRefreshTokenFromCookies(request.cookies);
   if (refreshToken) {
     const decoded = verifyRefreshToken(refreshToken);
     if (decoded) {
-      // Generate new token pair
       const newTokens = generateTokenPair({
         userId: decoded.userId,
         email: decoded.email,
@@ -132,11 +132,19 @@ export function rateLimitResponse(retryAfter: number): NextResponse {
   );
 }
 
+// Context type for dynamic routes
+interface RouteContext {
+  params: Promise<Record<string, string>>;
+}
+
 /**
  * Middleware wrapper for protected API routes
+ * Supports both regular routes and dynamic routes with params
  */
-export function withAuth(
-  handler: (request: NextRequest, user: DecodedToken) => Promise<NextResponse>,
+export function withAuth<T extends RouteContext | undefined = undefined>(
+  handler: T extends RouteContext
+    ? (request: NextRequest, user: DecodedToken, context: T) => Promise<NextResponse>
+    : (request: NextRequest, user: DecodedToken) => Promise<NextResponse>,
   options: {
     requiredPermissions?: Permission[];
     requireAll?: boolean;
@@ -144,7 +152,7 @@ export function withAuth(
     rateLimit?: boolean;
   } = {}
 ) {
-  return async (request: NextRequest): Promise<NextResponse> => {
+  return async (request: NextRequest, context?: T): Promise<NextResponse> => {
     // Rate limiting
     if (options.rateLimit !== false) {
       const clientIp = request.headers.get('x-forwarded-for') ||
@@ -186,8 +194,17 @@ export function withAuth(
       }
     }
 
-    // Call the handler
-    let response = await handler(request, authResult.user);
+    // Call the handler with or without context
+    let response: NextResponse;
+    if (context !== undefined) {
+      response = await (handler as (request: NextRequest, user: DecodedToken, context: T) => Promise<NextResponse>)(
+        request, authResult.user, context
+      );
+    } else {
+      response = await (handler as (request: NextRequest, user: DecodedToken) => Promise<NextResponse>)(
+        request, authResult.user
+      );
+    }
 
     // If we generated new tokens, set them in cookies
     if (authResult.newTokens) {
@@ -216,7 +233,6 @@ export function withRateLimit(
 
     const response = await handler(request);
 
-    // Add rate limit headers
     const headers = getRateLimitHeaders(rateLimitResult);
     Object.entries(headers).forEach(([key, value]) => {
       response.headers.set(key, value);

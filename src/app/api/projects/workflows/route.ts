@@ -182,7 +182,7 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
     await query(
       `INSERT INTO status_workflows (id, name, description, project_id, entity_type, is_default, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [workflowId, name, description || null, project_id || null, entity_type || 'task', is_default || false, user.id]
+      [workflowId, name, description || null, project_id || null, entity_type || 'task', is_default || false, user.userId]
     );
 
     // Create default statuses if provided

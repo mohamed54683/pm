@@ -105,7 +105,7 @@ export default function ReportsPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'SAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
@@ -123,13 +123,13 @@ export default function ReportsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Reports & Analytics</h1>
+            <p className="page-subtitle">
               Comprehensive project analytics and insights
             </p>
           </div>
@@ -155,7 +155,7 @@ export default function ReportsPage() {
             </button>
             <button 
               onClick={() => loadData()}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="btn-primary"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -195,10 +195,10 @@ export default function ReportsPage() {
               <div className="space-y-6">
                 {/* Key Metrics */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                  <div className="card p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Total Projects</p>
+                        <p className="page-subtitle">Total Projects</p>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white">{summary.totalProjects}</p>
                       </div>
                       <div className="rounded-full bg-blue-100 p-3 dark:bg-blue-900/30">
@@ -213,10 +213,10 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                  <div className="card p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Total Tasks</p>
+                        <p className="page-subtitle">Total Tasks</p>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white">{summary.totalTasks}</p>
                       </div>
                       <div className="rounded-full bg-emerald-100 p-3 dark:bg-emerald-900/30">
@@ -231,10 +231,10 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                  <div className="card p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Budget vs Actual</p>
+                        <p className="page-subtitle">Budget vs Actual</p>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatCurrency(summary.totalBudget)}</p>
                       </div>
                       <div className="rounded-full bg-amber-100 p-3 dark:bg-amber-900/30">
@@ -250,10 +250,10 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                  <div className="card p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Hours Logged</p>
+                        <p className="page-subtitle">Hours Logged</p>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white">{summary.totalHoursLogged.toFixed(0)}</p>
                       </div>
                       <div className="rounded-full bg-purple-100 p-3 dark:bg-purple-900/30">
@@ -270,7 +270,7 @@ export default function ReportsPage() {
 
                 {/* Risk & Issues Summary */}
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                  <div className="card p-6">
                     <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">Risk & Issues Overview</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
@@ -284,7 +284,7 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                  <div className="card p-6">
                     <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">Average Project Progress</h3>
                     <div className="flex items-center gap-4">
                       <div className="h-24 w-24 rounded-full border-8 border-blue-500" style={{
@@ -306,7 +306,7 @@ export default function ReportsPage() {
 
             {/* Project Status Tab */}
             {activeTab === 'project-status' && (
-              <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+              <div className="card">
                 {projectStatus.length === 0 ? (
                   <div className="py-12 text-center">
                     <p className="text-gray-500 dark:text-gray-400">No projects found</p>
@@ -314,7 +314,7 @@ export default function ReportsPage() {
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-50 dark:bg-gray-800/50">
+                      <thead className="bg-gray-50/80 dark:bg-gray-800/50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Project</th>
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
@@ -389,7 +389,7 @@ export default function ReportsPage() {
             {/* Earned Value Tab */}
             {activeTab === 'earned-value' && (
               <div className="space-y-6">
-                <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                <div className="card p-6">
                   <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">Earned Value Analysis (EVM)</h3>
                   <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
                     Performance metrics for project cost and schedule tracking
@@ -400,7 +400,7 @@ export default function ReportsPage() {
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-800/50">
+                        <thead className="bg-gray-50/80 dark:bg-gray-800/50">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Project</th>
                             <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-500">BAC</th>
@@ -459,7 +459,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* Legend */}
-                <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+                <div className="card p-6">
                   <h4 className="mb-4 font-medium text-gray-900 dark:text-white">EVM Metrics Legend</h4>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="text-sm">
@@ -501,7 +501,7 @@ export default function ReportsPage() {
 
             {/* Resource Utilization Tab */}
             {activeTab === 'resource' && (
-              <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+              <div className="card p-6">
                 <h3 className="mb-4 font-semibold text-gray-900 dark:text-white">Resource Utilization</h3>
                 <p className="text-center py-12 text-gray-500 dark:text-gray-400">
                   Resource utilization report - see <a href="/resources/workload" className="text-blue-600 hover:underline">Workload Analysis</a> for detailed resource data

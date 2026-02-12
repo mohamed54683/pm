@@ -85,7 +85,7 @@ export default function EarnedValuePage() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'SAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
@@ -120,19 +120,19 @@ export default function EarnedValuePage() {
       {/* Summary Cards */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Budget at Completion (BAC)</p>
+          <p className="page-subtitle">Budget at Completion (BAC)</p>
           <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(totals.bac)}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Planned Value (PV)</p>
+          <p className="page-subtitle">Planned Value (PV)</p>
           <p className="mt-1 text-2xl font-bold text-blue-600">{formatCurrency(totals.pv)}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Earned Value (EV)</p>
+          <p className="page-subtitle">Earned Value (EV)</p>
           <p className="mt-1 text-2xl font-bold text-green-600">{formatCurrency(totals.ev)}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Actual Cost (AC)</p>
+          <p className="page-subtitle">Actual Cost (AC)</p>
           <p className="mt-1 text-2xl font-bold text-orange-600">{formatCurrency(totals.ac)}</p>
         </div>
       </div>
@@ -144,7 +144,7 @@ export default function EarnedValuePage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Earned Value Management
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="page-subtitle">
               Project performance measurement using EVM methodology
             </p>
           </div>

@@ -133,7 +133,7 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
           valueColumns.value_number,
           valueColumns.value_date,
           valueColumns.value_json,
-          user.id
+          user.userId
         ]
       );
 
@@ -184,7 +184,7 @@ async function handlePost(request: NextRequest, user: DecodedToken) {
         order_index || 0,
         show_in_list ?? true,
         show_in_card ?? false,
-        user.id
+        user.userId
       ]
     );
 

@@ -1,226 +1,196 @@
 /**
- * Issues API - Secure CRUD operations for PMP database
- * Protected with authentication and input sanitization
+ * Issues API - Department-based access control
  */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { withAuth } from '@/lib/middleware/auth';
 import { sanitizeString, stripDangerousTags } from '@/lib/sanitize';
 import { DecodedToken } from '@/lib/auth';
+import { getAccessContext, buildEntityAccessFilter, canAccessProject } from '@/lib/project-access';
 
-// GET - Fetch issues (requires issues.view permission)
+// GET
 export const GET = withAuth(
-  async (request: NextRequest): Promise<NextResponse> => {
+  async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
+      const ctx = await getAccessContext(user.userId);
       const { searchParams } = new URL(request.url);
+      const id = searchParams.get('id');
       const project_id = searchParams.get('project_id');
       const status = searchParams.get('status');
       const severity = searchParams.get('severity');
 
+      if (id) {
+        const issues = await query<any[]>(
+          `SELECT i.*, p.name as project_name, p.code as project_code,
+            t.title as task_name, t.task_key,
+            r.title as risk_title, r.risk_key,
+            u.name as reporter_name, a.name as assignee_name, o.name as owner_name
+           FROM issues i
+           JOIN projects p ON i.project_id = p.id
+           LEFT JOIN tasks t ON i.task_id = t.id
+           LEFT JOIN risks r ON i.risk_id = r.id
+           LEFT JOIN users u ON i.reported_by = u.id
+           LEFT JOIN users a ON i.assigned_to = a.id
+           LEFT JOIN users o ON i.owner_id = o.id
+           WHERE i.id = ? AND i.deleted_at IS NULL`, [id]
+        );
+        if (!issues.length) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+        if (!canAccessProject(ctx, issues[0].project_id))
+          return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+        return NextResponse.json({ success: true, data: issues[0] });
+      }
+
+      const accessFilter = buildEntityAccessFilter(ctx, 'p');
       let sql = `
         SELECT i.*, p.name as project_name, p.code as project_code,
-          t.title as task_title, t.code as task_code,
-          rep.name as reporter_name, asg.name as assignee_name
+          t.task_key, u.name as reporter_name, a.name as assignee_name
         FROM issues i
-        LEFT JOIN projects p ON i.project_id = p.id
+        JOIN projects p ON i.project_id = p.id
         LEFT JOIN tasks t ON i.task_id = t.id
-        LEFT JOIN users rep ON i.reporter_id = rep.id
-        LEFT JOIN users asg ON i.assignee_id = asg.id
-        WHERE i.deleted_at IS NULL
+        LEFT JOIN users u ON i.reported_by = u.id
+        LEFT JOIN users a ON i.assigned_to = a.id
+        WHERE i.deleted_at IS NULL AND p.deleted_at IS NULL AND ${accessFilter.sql}
       `;
-      const params: (string | number)[] = [];
+      const params: any[] = [...accessFilter.params];
 
-      if (project_id) {
-        sql += ` AND i.project_id = ?`;
-        params.push(project_id);
-      }
-
-      if (status && status !== 'all') {
-        sql += ` AND i.status = ?`;
-        params.push(status);
-      }
-
-      if (severity && severity !== 'all') {
-        sql += ` AND i.severity = ?`;
-        params.push(severity);
-      }
+      if (project_id) { sql += ` AND i.project_id = ?`; params.push(project_id); }
+      if (status && status !== 'all') { sql += ` AND i.status = ?`; params.push(status); }
+      if (severity && severity !== 'all') { sql += ` AND i.severity = ?`; params.push(severity); }
 
       sql += ` ORDER BY i.severity = 'critical' DESC, i.severity = 'high' DESC, i.created_at DESC`;
+      const issues = await query<any[]>(sql, params);
 
-      const issues = await query<Record<string, unknown>[]>(sql, params);
-
-      // Get summary
-      const summaryResult = await query<Record<string, unknown>[]>(`
-        SELECT
-          COUNT(*) as total,
-          SUM(CASE WHEN status IN ('open', 'in_progress', 'reopened') THEN 1 ELSE 0 END) as open_issues,
-          SUM(CASE WHEN status IN ('resolved', 'closed') THEN 1 ELSE 0 END) as resolved,
-          SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
-          SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) as high,
-          SUM(CASE WHEN severity = 'medium' THEN 1 ELSE 0 END) as medium,
-          SUM(CASE WHEN severity = 'low' THEN 1 ELSE 0 END) as low
-        FROM issues WHERE deleted_at IS NULL
-      `);
-
-      return NextResponse.json({
-        success: true,
-        data: issues,
-        summary: summaryResult[0]
-      });
-    } catch (error) {
-      console.error('Issues API error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch issues', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
+      // Summary
+      const sumFilter = buildEntityAccessFilter(ctx, 'p');
+      const summary = await query<any[]>(
+        `SELECT COUNT(*) as total,
+          SUM(CASE WHEN i.status = 'open' THEN 1 ELSE 0 END) as open_issues,
+          SUM(CASE WHEN i.status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+          SUM(CASE WHEN i.status = 'resolved' THEN 1 ELSE 0 END) as resolved,
+          SUM(CASE WHEN i.status = 'closed' THEN 1 ELSE 0 END) as closed,
+          SUM(CASE WHEN i.severity = 'critical' THEN 1 ELSE 0 END) as critical,
+          SUM(CASE WHEN i.severity = 'high' THEN 1 ELSE 0 END) as high,
+          SUM(CASE WHEN i.severity = 'medium' THEN 1 ELSE 0 END) as medium
+         FROM issues i JOIN projects p ON i.project_id = p.id
+         WHERE i.deleted_at IS NULL AND p.deleted_at IS NULL AND ${sumFilter.sql}`,
+        [...sumFilter.params]
       );
+
+      return NextResponse.json({ success: true, data: issues, summary: summary[0] });
+    } catch (error) {
+      console.error('Issues GET error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to fetch issues' }, { status: 500 });
     }
   },
   { requiredPermissions: ['issues.view'], checkCsrf: false }
 );
 
-// POST - Create a new issue (requires issues.create permission)
+// POST
 export const POST = withAuth(
   async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
+      const ctx = await getAccessContext(user.userId);
       const body = await request.json();
-      const {
-        project_id, task_id, title, description, category, status,
-        severity, priority, assignee_id
-      } = body;
+      const { project_id, task_id, risk_id, title, description, severity, priority, assigned_to, category } = body;
 
-      // Sanitize inputs
-      const sanitizedTitle = sanitizeString(title);
-      const sanitizedDescription = stripDangerousTags(description);
+      if (!project_id || !sanitizeString(title))
+        return NextResponse.json({ success: false, error: 'Project and title required' }, { status: 400 });
+      if (!canAccessProject(ctx, project_id))
+        return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
-      if (!project_id || !sanitizedTitle) {
-        return NextResponse.json({ success: false, error: 'Project ID and title are required' }, { status: 400 });
-      }
+      const countRes = await query<any[]>(`SELECT COUNT(*) as cnt FROM issues WHERE project_id = ?`, [project_id]);
+      const num = (countRes[0]?.cnt || 0) + 1;
+      const [project] = await query<any[]>(`SELECT code FROM projects WHERE id = ?`, [project_id]);
+      const issueKey = `${project?.code || 'ISS'}-I${num}`;
 
-      const result = await query<{ insertId: number }>(
-        `INSERT INTO issues (uuid, project_id, task_id, title, description, category, status, severity, priority, reporter_id, assignee_id)
-         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          project_id, task_id || null, sanitizedTitle, sanitizedDescription || null,
-          category || 'other', status || 'open',
-          severity || 'medium', priority || 'medium',
-          user.userId, assignee_id || null
-        ]
+      const result = await query<any>(
+        `INSERT INTO issues (issue_number, issue_key, project_id, task_id, risk_id, title, description, severity, priority, assigned_to, category, status, reported_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
+        [num, issueKey, project_id, task_id || null, risk_id || null,
+         sanitizeString(title), stripDangerousTags(description) || null,
+         severity || 'medium', priority || 'medium',
+         assigned_to || null, sanitizeString(category) || null, user.userId]
       );
 
-      // Log activity
-      await query(
-        `INSERT INTO activity_log (user_id, project_id, action, entity_type, entity_id, description)
-         VALUES (?, ?, 'created', 'issue', ?, ?)`,
-        [user.userId, project_id, result.insertId, `Created issue: ${sanitizedTitle}`]
-      );
+      await query(`INSERT INTO project_activity_log (user_id, project_id, action, entity_type, entity_id, description) VALUES (?, ?, 'created', 'issue', ?, ?)`,
+        [user.userId, project_id, result.insertId, `Created issue: ${sanitizeString(title)}`]);
 
-      return NextResponse.json({
-        success: true,
-        data: { id: result.insertId, title: sanitizedTitle }
-      }, { status: 201 });
+      return NextResponse.json({ success: true, data: { id: result.insertId, issue_key: issueKey } }, { status: 201 });
     } catch (error) {
-      console.error('Create issue error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to create issue', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
-      );
+      console.error('Issues POST error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to create issue' }, { status: 500 });
     }
   },
   { requiredPermissions: ['issues.create'] }
 );
 
-// PUT - Update an issue (requires issues.edit permission)
+// PUT
 export const PUT = withAuth(
-  async (request: NextRequest): Promise<NextResponse> => {
+  async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
+      const ctx = await getAccessContext(user.userId);
       const body = await request.json();
-      const {
-        id, title, description, category, status, severity, priority,
-        assignee_id, resolution
-      } = body;
+      const { id, title, description, severity, priority, status, assigned_to, category, resolution_plan, resolution_notes } = body;
 
-      if (!id) {
-        return NextResponse.json({ success: false, error: 'Issue ID is required' }, { status: 400 });
+      if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
+
+      const [issue] = await query<any[]>(`SELECT project_id FROM issues WHERE id = ? AND deleted_at IS NULL`, [id]);
+      if (!issue) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+      if (!canAccessProject(ctx, issue.project_id))
+        return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+
+      const updates: string[] = [];
+      const params: any[] = [];
+      const fields: [string, any][] = [
+        ['title', title ? sanitizeString(title) : undefined],
+        ['description', description !== undefined ? stripDangerousTags(description) : undefined],
+        ['severity', severity], ['priority', priority], ['status', status],
+        ['assigned_to', assigned_to], ['category', category ? sanitizeString(category) : undefined],
+        ['resolution_plan', resolution_plan ? sanitizeString(resolution_plan) : undefined],
+        ['resolution_notes', resolution_notes ? stripDangerousTags(resolution_notes) : undefined],
+      ];
+      for (const [field, value] of fields) {
+        if (value !== undefined) { updates.push(`${field} = ?`); params.push(value); }
       }
 
-      // Sanitize inputs
-      const sanitizedTitle = title ? sanitizeString(title) : null;
-      const sanitizedDescription = description ? stripDangerousTags(description) : null;
-      const sanitizedResolution = resolution ? stripDangerousTags(resolution) : null;
-
-      // Set resolved_date if status is resolved or closed
-      let resolvedDate = null;
       if (status === 'resolved' || status === 'closed') {
-        resolvedDate = new Date().toISOString().split('T')[0];
+        updates.push('actual_resolution_date = NOW()');
       }
 
-      await query(
-        `UPDATE issues SET
-          title = COALESCE(?, title),
-          description = COALESCE(?, description),
-          category = COALESCE(?, category),
-          status = COALESCE(?, status),
-          severity = COALESCE(?, severity),
-          priority = COALESCE(?, priority),
-          assignee_id = COALESCE(?, assignee_id),
-          resolution = COALESCE(?, resolution),
-          resolved_date = COALESCE(?, resolved_date),
-          updated_at = NOW()
-         WHERE id = ?`,
-        [
-          sanitizedTitle, sanitizedDescription, category, status, severity, priority,
-          assignee_id, sanitizedResolution, resolvedDate, id
-        ]
-      );
+      if (updates.length) {
+        updates.push('updated_at = NOW()');
+        params.push(id);
+        await query(`UPDATE issues SET ${updates.join(', ')} WHERE id = ?`, params);
+      }
 
-      return NextResponse.json({ success: true, message: 'Issue updated successfully' });
+      return NextResponse.json({ success: true, message: 'Issue updated' });
     } catch (error) {
-      console.error('Update issue error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to update issue', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
-      );
+      console.error('Issues PUT error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to update issue' }, { status: 500 });
     }
   },
   { requiredPermissions: ['issues.edit'] }
 );
 
-// DELETE - Soft delete an issue (requires issues.delete permission)
+// DELETE
 export const DELETE = withAuth(
   async (request: NextRequest, user: DecodedToken): Promise<NextResponse> => {
     try {
+      const ctx = await getAccessContext(user.userId);
       const { searchParams } = new URL(request.url);
       const id = searchParams.get('id');
+      if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
 
-      if (!id) {
-        return NextResponse.json({ success: false, error: 'Issue ID is required' }, { status: 400 });
-      }
-
-      // Get issue info for logging
-      const issueInfo = await query<{ project_id: number }[]>(
-        `SELECT project_id FROM issues WHERE id = ?`,
-        [id]
-      );
+      const [issue] = await query<any[]>(`SELECT project_id FROM issues WHERE id = ? AND deleted_at IS NULL`, [id]);
+      if (!issue) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+      if (!canAccessProject(ctx, issue.project_id))
+        return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
       await query(`UPDATE issues SET deleted_at = NOW() WHERE id = ?`, [id]);
-
-      // Log activity
-      if (issueInfo && issueInfo.length > 0) {
-        await query(
-          `INSERT INTO activity_log (user_id, project_id, action, entity_type, entity_id, description)
-           VALUES (?, ?, 'deleted', 'issue', ?, ?)`,
-          [user.userId, issueInfo[0].project_id, id, `Deleted issue`]
-        );
-      }
-
-      return NextResponse.json({ success: true, message: 'Issue deleted successfully' });
+      return NextResponse.json({ success: true, message: 'Issue deleted' });
     } catch (error) {
-      console.error('Delete issue error:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete issue', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 500 }
-      );
+      console.error('Issues DELETE error:', error);
+      return NextResponse.json({ success: false, error: 'Failed to delete' }, { status: 500 });
     }
   },
   { requiredPermissions: ['issues.delete'] }

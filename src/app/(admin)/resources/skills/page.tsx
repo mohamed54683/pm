@@ -84,7 +84,7 @@ export default function SkillsMatrixPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Team Skills Matrix
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="page-subtitle">
               Overview of team members skills and expertise levels
             </p>
           </div>

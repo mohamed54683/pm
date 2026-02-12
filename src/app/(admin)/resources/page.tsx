@@ -52,13 +52,13 @@ export default function ResourcesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Team Members</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Team Members</h1>
+            <p className="page-subtitle">
               {resources.length} team members
             </p>
           </div>
@@ -81,7 +81,7 @@ export default function ResourcesPage() {
                 </svg>
               </button>
             </div>
-            <button className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            <button className="btn-primary">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -106,7 +106,7 @@ export default function ResourcesPage() {
         {view === 'grid' ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredResources.map((resource) => (
-              <div key={resource.id} className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+              <div key={resource.id} className="card p-6">
                 {/* Avatar & Name */}
                 <div className="flex items-center gap-4">
                   <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-2xl font-bold text-white">
@@ -116,7 +116,7 @@ export default function ResourcesPage() {
                     <h3 className="font-semibold text-gray-900 dark:text-white">
                       {resource.name}
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{resource.roles}</p>
+                    <p className="page-subtitle">{resource.roles}</p>
                   </div>
                 </div>
 
@@ -153,9 +153,9 @@ export default function ResourcesPage() {
             ))}
           </div>
         ) : (
-          <div className="rounded-xl bg-white shadow-sm dark:bg-gray-800">
+          <div className="card">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800/50">
+              <thead className="bg-gray-50/80 dark:bg-gray-800/50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Role</th>

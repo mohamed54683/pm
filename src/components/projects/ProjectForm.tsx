@@ -233,7 +233,7 @@ export default function ProjectForm({ initialData, projectId, onSuccess, onCance
           Budget
         </label>
         <div className="relative">
-          <span className="absolute left-4 top-2.5 text-gray-500">$</span>
+          <span className="absolute left-4 top-2.5 text-gray-500">ر.س</span>
           <input
             type="number"
             value={formData.budget || ''}

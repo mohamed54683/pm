@@ -178,19 +178,19 @@ export default function IssuesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="page-container">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
+      <div className="page-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Issue Tracker</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="page-title">Issue Tracker</h1>
+            <p className="page-subtitle">
               Track and resolve project issues
             </p>
           </div>
           <button 
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            className="btn-primary">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -204,8 +204,8 @@ export default function IssuesPage() {
         {stats && (
           <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
             <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+              <p className="page-subtitle">Total</p>
+              <p className="page-title">{stats.total}</p>
             </div>
             <div className="rounded-xl bg-red-50 p-4 shadow-sm dark:bg-red-900/20">
               <p className="text-sm text-red-600 dark:text-red-400">Open</p>
@@ -239,7 +239,7 @@ export default function IssuesPage() {
         )}
 
         {/* Filters */}
-        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+        <div className="filter-bar mb-6">
           <form onSubmit={handleSearch} className="flex flex-1 items-center gap-2">
             <div className="relative flex-1">
               <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +250,7 @@ export default function IssuesPage() {
                 placeholder="Search issues..."
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input pl-10"
               />
             </div>
             <button type="submit" className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">
@@ -260,7 +260,7 @@ export default function IssuesPage() {
           <select
             value={filters.status}
             onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(1); }}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="form-select"
           >
             <option value="">All Status</option>
             <option value="open">Open</option>
@@ -272,7 +272,7 @@ export default function IssuesPage() {
           <select
             value={filters.severity}
             onChange={(e) => { setFilters({ ...filters, severity: e.target.value }); setPage(1); }}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="form-select"
           >
             <option value="">All Severity</option>
             <option value="critical">Critical</option>
@@ -283,7 +283,7 @@ export default function IssuesPage() {
         </div>
 
         {/* Issues Table */}
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+        <div className="card">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
@@ -298,15 +298,15 @@ export default function IssuesPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800/50">
+                <thead className="bg-gray-50/80 dark:bg-gray-800/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Issue</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Project</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Severity</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Reporter</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Due Date</th>
+                    <th className="data-table-th">Issue</th>
+                    <th className="data-table-th">Project</th>
+                    <th className="data-table-th">Status</th>
+                    <th className="data-table-th">Severity</th>
+                    <th className="data-table-th">Owner</th>
+                    <th className="data-table-th">Reporter</th>
+                    <th className="data-table-th">Due Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -343,7 +343,7 @@ export default function IssuesPage() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                        <span className="page-subtitle">
                           {issue.reporter_first_name} {issue.reporter_last_name}
                         </span>
                       </td>
@@ -394,12 +394,12 @@ export default function IssuesPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Report New Issue</h2>
           <form onSubmit={handleCreateIssue} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project *</label>
+              <label className="form-label">Project *</label>
               <select
                 value={newIssue.project_id}
                 onChange={(e) => setNewIssue({ ...newIssue, project_id: e.target.value })}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
               >
                 <option value="">Select a project</option>
                 {projects.map(p => (
@@ -408,33 +408,33 @@ export default function IssuesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title *</label>
+              <label className="form-label">Title *</label>
               <input
                 type="text"
                 value={newIssue.title}
                 onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
                 placeholder="Issue title"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <label className="form-label">Description</label>
               <textarea
                 value={newIssue.description}
                 onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })}
                 rows={3}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="form-input"
                 placeholder="Describe the issue"
               />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Severity</label>
+                <label className="form-label">Severity</label>
                 <select
                   value={newIssue.severity}
                   onChange={(e) => setNewIssue({ ...newIssue, severity: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -443,11 +443,11 @@ export default function IssuesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                <label className="form-label">Category</label>
                 <select
                   value={newIssue.category}
                   onChange={(e) => setNewIssue({ ...newIssue, category: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input"
                 >
                   <option value="bug">Bug</option>
                   <option value="requirement">Requirement</option>
@@ -457,11 +457,11 @@ export default function IssuesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Impact</label>
+                <label className="form-label">Impact</label>
                 <select
                   value={newIssue.impact}
                   onChange={(e) => setNewIssue({ ...newIssue, impact: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="form-input"
                 >
                   <option value="minor">Minor</option>
                   <option value="moderate">Moderate</option>

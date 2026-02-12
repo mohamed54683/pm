@@ -81,7 +81,7 @@ export default function MyTasksPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               My Assigned Tasks
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="page-subtitle">
               Tasks assigned to you across all projects
             </p>
           </div>

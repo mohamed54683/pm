@@ -77,7 +77,7 @@ export default function WorkflowsPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Workflow Configuration
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="page-subtitle">
               Define status transitions and approval processes
             </p>
           </div>

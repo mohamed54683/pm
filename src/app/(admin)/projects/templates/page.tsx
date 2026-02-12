@@ -83,7 +83,7 @@ export default function TemplatesPage() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Templates</h2>
+            <h2 className="card-title text-xl">Templates</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Create and manage project templates for quick project setup
             </p>
